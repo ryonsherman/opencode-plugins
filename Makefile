@@ -35,6 +35,7 @@ $(foreach name,$(PLUGIN_NAMES),$(eval $(call PLUGIN_RULES,$(name))))
 
 DESC_codebase-index := Local codebase indexing and full-text search over source files
 DESC_command-history := Log and search notable commands with output, exit codes, and directories
+DESC_decision-log := Record and search architectural/design decisions with lifecycle tracking
 DESC_diff-engine := Compare text using Myers diff algorithm (line-level and character-level)
 DESC_error-journal := Persistent error log with FTS search, resolution tracking, and pattern matching
 DESC_git-context := Git repo state: branch, commits, dirty files, remote status, stashes

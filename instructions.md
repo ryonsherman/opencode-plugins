@@ -139,6 +139,33 @@ Three tools for logging and recalling notable commands across sessions.
 
 ---
 
+## Decision Log Plugin
+
+*If `decision-log.ts` is installed.*
+
+Five tools for recording and recalling architectural/design decisions. Session-scoped by default.
+
+### Tools
+
+- **`decision_log(title, decision, context?, consequences?, status?, tags?, project?)`** — Record a decision. Status defaults to "accepted".
+- **`decision_get(id)`** — Get a decision by ID.
+- **`decision_search(query, all_sessions?, limit?)`** — FTS search. Current session only by default.
+- **`decision_list(status?, tags?, project?, all_sessions?, limit?)`** — List decisions with filters.
+- **`decision_update(id, ...fields)`** — Update status, text, or mark as superseded.
+
+### When to log automatically
+
+- When the user answers a question that represents a preference, architectural choice, or design decision
+- When a significant technical tradeoff is discussed and resolved
+- When the user says "let's go with X" or "use X instead of Y"
+- Do NOT ask for permission to log — just log it
+
+### Lifecycle
+
+Decisions progress: `proposed` → `accepted` → `deprecated` or `superseded`. Use `decision_update` to change status and optionally link to the superseding decision via `superseded_by`.
+
+---
+
 ## Diff Engine Plugin
 
 *If `diff-engine.ts` is installed.*

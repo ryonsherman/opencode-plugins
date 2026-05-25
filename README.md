@@ -6,6 +6,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 |--------|-------------|
 | [codebase-index](#codebase-indexts) | Local codebase indexing and full-text search over source files |
 | [command-history](#command-historyts) | Log and search notable commands with output, exit codes, and directories |
+| [decision-log](#decision-logts) | Record and search architectural/design decisions with lifecycle tracking |
 | [diff-engine](#diff-enginets) | Compare text using Myers diff algorithm (line-level and character-level) |
 | [error-journal](#error-journalts) | Persistent error log with FTS search, resolution tracking, and pattern matching |
 | [git-context](#git-contextts) | Git repo state: branch, commits, dirty files, remote status, stashes |
@@ -98,6 +99,29 @@ Persistent log of notable commands with full-text search. Log builds, migrations
 - Session-aware (tracks which session ran each command)
 - Directory prefix filtering
 - Output truncation in display (500 chars) to keep results readable
+- Same backup/recovery mechanism as session-memory
+
+### `decision-log.ts`
+
+Record and search architectural and design decisions (ADRs). Tracks decision lifecycle (proposed → accepted → deprecated → superseded) with structured fields. Session-scoped by default.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `decision_log` | Record a new decision with context, rationale, and consequences |
+| `decision_get` | Get a specific decision by ID |
+| `decision_search` | FTS search across all decision fields (session-scoped by default) |
+| `decision_list` | List decisions, filterable by status, tags, or project |
+| `decision_update` | Update status, edit fields, or mark as superseded |
+
+**Features:**
+- SQLite + FTS5 with porter stemming
+- Session-scoped by default (use `all_sessions: true` to search across sessions)
+- Decision lifecycle: proposed, accepted, deprecated, superseded
+- Supersession chain tracking
+- Tag and project filtering
+- Auto-logs when user answers preference/architectural questions
 - Same backup/recovery mechanism as session-memory
 
 ### `diff-engine.ts`
@@ -320,6 +344,7 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 | Memory | `~/.opencode-memory/memories.db` |
 | Codebase | `~/.opencode-memory/codebase.db` |
 | Command History | `~/.opencode-memory/command-history.db` |
+| Decision Log | `~/.opencode-memory/decision-log.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
 | Error Journal | `~/.opencode-memory/error-journal.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |

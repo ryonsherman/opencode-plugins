@@ -37,7 +37,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | # | Plugin | Return | Effort | Notes |
 |---|--------|--------|--------|-------|
 | 17 | **Dependency tracker** | Medium | High | Multi-language manifest parsing, vuln DB integration. |
-| 18 | **Decision log (ADR)** | Low-Med | Medium | Overlaps heavily with memory + decision tag. |
+| 18 | ~~**Decision log (ADR)**~~ | Low-Med | Medium | Done — `decision-log.ts` (log, search, list, update, get; session-scoped) |
 | 19 | **Snippet library** | Low-Med | Medium | Overlaps with memory. Marginal value over tags. |
 | 20 | **Link bookmarks** | Low | Low-Med | Overlaps with memory + reference tag. |
 | 21 | **Code formatter** | Low-Med | Low | Just shells out to prettier/black. Very thin wrapper. |
