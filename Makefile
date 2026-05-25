@@ -46,6 +46,7 @@ DESC_notepad := Freeform project notes with FTS search and auto-generated NOTES.
 DESC_project-profile := Auto-detect project metadata (languages, framework, scripts) with manual conventions
 DESC_regex-tester := Test, replace, and explain regular expressions using native RegExp
 DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
+DESC_snippet-library := Store and recall code snippets by language, description, and tags
 DESC_task-manager := Persistent TODO with SQLite backend and auto-generated TODO.md
 DESC_time-calc := Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion
 

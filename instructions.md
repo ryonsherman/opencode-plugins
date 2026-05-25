@@ -338,6 +338,29 @@ Use `regex_test` to verify patterns before using them in code. Use `regex_explai
 
 ---
 
+## Snippet Library Plugin
+
+*If `snippet-library.ts` is installed.*
+
+Five tools for storing and recalling reusable code snippets. Backed by SQLite + FTS5 at `~/.opencode-memory/snippet-library.db`.
+
+### Tools
+
+- **`snippet_save(title, code, language?, description?, tags?)`** — Save a snippet.
+- **`snippet_search(query, language?, tags?, limit?)`** — FTS search across titles, code, descriptions, and language.
+- **`snippet_list(language?, tags?, limit?)`** — List all snippets.
+- **`snippet_get(id)`** — Get full snippet by ID.
+- **`snippet_delete(id)`** — Delete a snippet.
+
+### When to use
+
+- When the user shares a useful pattern, utility function, or boilerplate they want to reuse
+- When the user says "save this snippet", "store this code", "I'll need this again"
+- For reusable code patterns that don't belong in memory (which is for prose context)
+- Snippets are global (available across all projects)
+
+---
+
 ## Task Manager Plugin
 
 *If `task-manager.ts` is installed.*

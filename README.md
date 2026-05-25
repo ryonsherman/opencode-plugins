@@ -17,6 +17,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | [project-profile](#project-profilets) | Auto-detect project metadata (languages, framework, scripts) with manual conventions |
 | [regex-tester](#regex-testerts) | Test, replace, and explain regular expressions using native RegExp |
 | [session-memory](#session-memoryts) | Persistent session memory with FTS5 search, tags, scopes, and cross-session recall |
+| [snippet-library](#snippet-libraryts) | Store and recall code snippets by language, description, and tags |
 | [task-manager](#task-managerts) | Persistent TODO with SQLite backend and auto-generated TODO.md |
 | [time-calc](#time-calcts) | Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion |
 
@@ -340,6 +341,28 @@ Persistent session memory backed by SQLite with FTS5 full-text search (BM25 rank
 - Session-context pattern: a single `session-context` memory holds the full session record
 - Auto-backup after every write (keeps last 5), corruption detection with automatic restore
 
+### `snippet-library.ts`
+
+Store and recall reusable code snippets by language, description, and tags. Backed by SQLite + FTS5 — no generated files.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `snippet_save` | Save a code snippet with title, language, description, and tags |
+| `snippet_search` | FTS search across snippet titles, code, descriptions, and language |
+| `snippet_list` | List snippets, filterable by language and tags |
+| `snippet_get` | Get a snippet by ID with full code |
+| `snippet_delete` | Delete a snippet by ID |
+
+**Features:**
+- SQLite + FTS5 with porter stemming
+- Global scope (snippets available across all projects)
+- Code preview (3 lines) in list view, full code in get/search
+- Language and tag filtering
+- Same backup/recovery mechanism as session-memory
+- Database: `~/.opencode-memory/snippet-library.db`
+
 ### `task-manager.ts`
 
 Persistent project TODO backed by SQLite with auto-generated TODO.md. Tasks persist across sessions and the markdown file is regenerated after every change. Supports syncing manual edits back from the file.
@@ -395,6 +418,7 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 | Error Journal | `~/.opencode-memory/error-journal.db` |
 | Notepad | `~/.opencode-memory/notepad.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
+| Snippet Library | `~/.opencode-memory/snippet-library.db` |
 | Task Manager | `~/.opencode-memory/task-manager.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |
 
