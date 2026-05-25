@@ -2,16 +2,17 @@ PLUGIN_DIR := $(HOME)/.config/opencode/plugins
 PLUGINS := $(wildcard plugins/*.ts)
 PLUGIN_NAMES := $(notdir $(basename $(PLUGINS)))
 
-.PHONY: install uninstall list installed help $(addprefix install-,$(PLUGIN_NAMES)) $(addprefix uninstall-,$(PLUGIN_NAMES))
+.PHONY: install uninstall list installed install-instructions help $(addprefix install-,$(PLUGIN_NAMES)) $(addprefix uninstall-,$(PLUGIN_NAMES))
 
 help:
 	@echo "Usage:"
-	@echo "  make install            Install all plugins"
-	@echo "  make install-<name>     Install a specific plugin"
-	@echo "  make uninstall          Uninstall all plugins"
-	@echo "  make uninstall-<name>   Uninstall a specific plugin"
-	@echo "  make list               List available plugins"
-	@echo "  make installed          Show installed plugins"
+	@echo "  make install              Install all plugins"
+	@echo "  make install-<name>       Install a specific plugin"
+	@echo "  make uninstall            Uninstall all plugins"
+	@echo "  make uninstall-<name>     Uninstall a specific plugin"
+	@echo "  make list                 List available plugins"
+	@echo "  make installed            Show installed plugins"
+	@echo "  make install-instructions Show how to set up instructions"
 	@echo ""
 	@$(MAKE) --no-print-directory list
 
@@ -46,3 +47,20 @@ list:
 installed:
 	@echo "Installed plugins ($(PLUGIN_DIR)):"
 	@found=0; $(foreach name,$(PLUGIN_NAMES),if [ -f "$(PLUGIN_DIR)/$(name).ts" ]; then printf "  %-20s %s\n" "$(name)" "$(DESC_$(name))"; found=1; fi;) if [ "$$found" = "0" ]; then echo "  (none)"; fi
+
+install-instructions:
+	@echo "To configure plugin instructions for OpenCode:"
+	@echo ""
+	@echo "  1. Open your global instructions file:"
+	@echo "     ~/.config/opencode/instructions.md"
+	@echo ""
+	@echo "  2. Append the relevant sections from this repo's instructions file:"
+	@echo "     $(CURDIR)/instructions.md"
+	@echo ""
+	@echo "  3. Only include sections for plugins you have installed."
+	@echo "     Each section is marked with which plugin file it requires."
+	@echo ""
+	@echo "  Example:"
+	@echo "     cat $(CURDIR)/instructions.md >> ~/.config/opencode/instructions.md"
+	@echo ""
+	@echo "  Or selectively copy the sections you need into your global file."
