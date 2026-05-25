@@ -7,6 +7,6 @@
 
 # TODO
 
-## Low Priority
+## Medium Priority
 
 - [ ] Dependency tracker plugin — multi-language manifest parsing, vuln DB integration [plugin]
