@@ -253,6 +253,13 @@ const memoryRetrieve = tool({
       .optional()
       .default(10)
       .describe("Maximum number of results (1-50)"),
+    summaries: tool.schema
+      .boolean()
+      .optional()
+      .default(false)
+      .describe(
+        "When true, returns truncated content (first 200 chars) instead of full content. Use for broad searches to save tokens; follow up with a narrower query or full retrieve for specific IDs."
+      ),
   },
   execute: async (args, ctx) => {
     return readDb(() => {
@@ -304,7 +311,21 @@ const memoryRetrieve = tool({
 
       try {
         const rows = database.query(sql).all(...params);
-        return stringify(rows);
+        const useSummaries = args.summaries === true;
+        const result = useSummaries
+          ? rows.map((r: any) => ({
+              id: r.id,
+              tags: r.tags,
+              session_id: r.session_id,
+              created_at: r.created_at,
+              rank: r.rank,
+              summary: r.content.length > 200
+                ? r.content.slice(0, 200) + "..."
+                : r.content,
+              truncated: r.content.length > 200,
+            }))
+          : rows;
+        return stringify(result);
       } catch (err) {
         return JSON.stringify({
           error: `Search failed: ${(err as Error).message}`,
