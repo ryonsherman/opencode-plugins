@@ -423,6 +423,24 @@ const memoryList = tool({
   },
 });
 
+const memoryDelete = tool({
+  description:
+    "Delete a specific memory by its ID. Removes both the memory record and its FTS index entry.",
+  args: {
+    id: tool.schema.number().describe("ID of the memory to delete"),
+  },
+  execute: async (args) => {
+    return writeDb(() => {
+      const database = getDb();
+      const result = database.query("DELETE FROM memories WHERE id = ?").run(args.id);
+      return JSON.stringify({
+        deleted: result.changes > 0,
+        id: args.id,
+      });
+    });
+  },
+});
+
 export const SessionMemoryPlugin: Plugin = async () => {
   return {
     tool: {
@@ -431,6 +449,7 @@ export const SessionMemoryPlugin: Plugin = async () => {
       memory_promote: memoryPromote,
       memory_promote_session: memoryPromoteSession,
       memory_list: memoryList,
+      memory_delete: memoryDelete,
     },
   };
 };

@@ -13,6 +13,7 @@ Persistent session memory plugin backed by SQLite with FTS5 full-text search. St
 - **`memory_promote`** — Promote a single session memory to global scope
 - **`memory_promote_session`** — Promote all session memories to global scope
 - **`memory_list`** — Browse memories by scope and tags
+- **`memory_delete`** — Delete a specific memory by ID
 
 **Database:** `~/.opencode-memory/memories.db` with auto-backups on every write (last 5 kept). Corruption detection with automatic restore from latest backup.
 
