@@ -43,9 +43,18 @@ function initSchema(database: Database): void {
     )
   `);
 
-  try {
-    database.exec("ALTER TABLE memories ADD COLUMN title TEXT");
-  } catch {}
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      title TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  database.exec(
+    "INSERT OR IGNORE INTO sessions (id) SELECT DISTINCT session_id FROM memories WHERE session_id IS NOT NULL"
+  );
 
   const row = database
     .query("SELECT name FROM sqlite_master WHERE type='table' AND name='memories_fts'")
@@ -187,6 +196,12 @@ function stringify(value: unknown): string {
   return JSON.stringify(value, null, 2);
 }
 
+function ensureSession(sessionId: string | null): void {
+  if (!sessionId) return;
+  const database = getDb();
+  database.query("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
+}
+
 // --- Tools ---
 
 const memoryStore = tool({
@@ -219,12 +234,13 @@ const memoryStore = tool({
   execute: async (args, ctx) => {
     return writeDb(() => {
       const database = getDb();
-      const sessionId = ctx.sessionID ?? null;
+      const sessionId = args.global ? null : (ctx.sessionID ?? null);
+      ensureSession(sessionId);
       const stmt = database.query(
         "INSERT INTO memories (session_id, title, content, tags) VALUES (?, ?, ?, ?)"
       );
       const result = stmt.run(
-        args.global ? null : sessionId,
+        sessionId,
         args.title ?? null,
         args.content,
         jsonTags(args.tags)
@@ -539,6 +555,81 @@ const memoryTags = tool({
   },
 });
 
+const memorySessions = tool({
+  description:
+    "List all sessions that contain memories. Each session shows its ID, optional title, memory count, and last activity time. Use session_set_title to give a session a short name.",
+  args: {},
+  execute: async () => {
+    return readDb(() => {
+      const database = getDb();
+      const rows = database
+        .query(`
+          SELECT s.id, s.title, COUNT(m.id) as memory_count,
+                 MAX(m.created_at) as last_memory_at
+          FROM sessions s
+          LEFT JOIN memories m ON m.session_id = s.id
+          GROUP BY s.id
+          ORDER BY last_memory_at DESC
+        `)
+        .all();
+      return stringify(rows);
+    });
+  },
+});
+
+const sessionSetTitle = tool({
+  description:
+    "Give a session a human-readable short title (single word or hyphenated). Use memory_sessions first to find the session ID.",
+  args: {
+    id: tool.schema.string().describe("Session ID from memory_sessions"),
+    title: tool.schema
+      .string()
+      .describe("Short title (single word or hyphenated)"),
+  },
+  execute: async (args) => {
+    return writeDb(() => {
+      const database = getDb();
+      const result = database
+        .query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(args.title, args.id);
+      return JSON.stringify({
+        set: result.changes > 0,
+        id: args.id,
+        title: args.title,
+      });
+    });
+  },
+});
+
+const memoryCopy = tool({
+  description:
+    "Copy a memory from another session to the current session. The memory's content, tags, and title are preserved but it gets a new ID and is assigned to the current session.",
+  args: {
+    id: tool.schema.number().describe("ID of the memory to copy"),
+  },
+  execute: async (args, ctx) => {
+    return writeDb(() => {
+      const database = getDb();
+      const source = database
+        .query("SELECT title, content, tags FROM memories WHERE id = ?")
+        .get(args.id) as { title: string | null; content: string; tags: string } | null;
+      if (!source) {
+        return JSON.stringify({ copied: false, error: "memory not found", id: args.id });
+      }
+      const sessionId = ctx.sessionID ?? null;
+      ensureSession(sessionId);
+      const result = database
+        .query("INSERT INTO memories (session_id, title, content, tags) VALUES (?, ?, ?, ?)")
+        .run(sessionId, source.title, source.content, source.tags);
+      return JSON.stringify({
+        copied: true,
+        new_id: Number(result.lastInsertRowid),
+        source_id: args.id,
+      });
+    });
+  },
+});
+
 export const SessionMemoryPlugin: Plugin = async () => {
   return {
     tool: {
@@ -550,6 +641,9 @@ export const SessionMemoryPlugin: Plugin = async () => {
       memory_delete: memoryDelete,
       memory_update: memoryUpdate,
       memory_tags: memoryTags,
+      memory_sessions: memorySessions,
+      session_set_title: sessionSetTitle,
+      memory_copy: memoryCopy,
     },
   };
 };
