@@ -5,6 +5,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | Plugin | Description |
 |--------|-------------|
 | [codebase-index](#codebase-indexts) | Local codebase indexing and full-text search over source files |
+| [command-history](#command-historyts) | Log and search notable commands with output, exit codes, and directories |
 | [diff-engine](#diff-enginets) | Compare text using Myers diff algorithm (line-level and character-level) |
 | [error-journal](#error-journalts) | Persistent error log with FTS search, resolution tracking, and pattern matching |
 | [git-context](#git-contextts) | Git repo state: branch, commits, dirty files, remote status, stashes |
@@ -78,6 +79,25 @@ Local codebase indexing and search. Scans source files, splits them into line-ba
 - Auto-indexes on first search if project isn't indexed yet
 - Path filter narrowing (e.g. `src/api` or `.ts`)
 - Supports multiple projects independently
+- Same backup/recovery mechanism as session-memory
+
+### `command-history.ts`
+
+Persistent log of notable commands with full-text search. Log builds, migrations, deploys, and debugging commands with their output for later recall.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `command_log` | Log a command with output, exit code, and working directory |
+| `command_search` | FTS search across command history (command text, output, directory) |
+| `command_list` | List recent commands, filterable by directory or session |
+
+**Features:**
+- SQLite + FTS5 with porter stemming
+- Session-aware (tracks which session ran each command)
+- Directory prefix filtering
+- Output truncation in display (500 chars) to keep results readable
 - Same backup/recovery mechanism as session-memory
 
 ### `diff-engine.ts`
@@ -299,6 +319,7 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 |----------|------|
 | Memory | `~/.opencode-memory/memories.db` |
 | Codebase | `~/.opencode-memory/codebase.db` |
+| Command History | `~/.opencode-memory/command-history.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
 | Error Journal | `~/.opencode-memory/error-journal.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |

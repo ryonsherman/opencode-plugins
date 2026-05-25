@@ -116,6 +116,29 @@ When you need to understand, find, or reference anything in the codebase, just c
 
 ---
 
+## Command History Plugin
+
+*If `command-history.ts` is installed.*
+
+Three tools for logging and recalling notable commands across sessions.
+
+### Tools
+
+- **`command_log(command, output?, exit_code?, directory?)`** — Log a command after running it. Use for builds, migrations, deploys, complex debugging — not for trivial commands.
+- **`command_search(query, limit?)`** — FTS search across command text, output, and directory.
+- **`command_list(limit?, directory?, session_only?)`** — List recent commands. Filter by directory prefix or current session.
+
+### When to log
+
+- Builds, test runs, and their results (especially failures)
+- Database migrations and schema changes
+- Deploy commands
+- Complex debugging sequences (curl, network diagnostics, etc.)
+- Package installs that change project state
+- Do NOT log: ls, cd, cat, git status, or other trivial/exploratory commands
+
+---
+
 ## Diff Engine Plugin
 
 *If `diff-engine.ts` is installed.*
