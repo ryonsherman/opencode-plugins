@@ -9,7 +9,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | 1 | ~~**Git context**~~ | High | Low | Done. Shells out to git commands, formats output. No DB needed. |
 | 2 | ~~**Regex tester**~~ | High | Low | Done. Native RegExp — test, replace, explain. No deps, no state. |
 | 3 | ~~**Hash/encode/decode**~~ | Medium | Low | Done. Native crypto/Buffer APIs — hash, HMAC, base64/url/hex encode/decode. |
-| 4 | **Date/time calculator** | Medium | Low | Native Date APIs. No deps, no state. |
+| 4 | ~~**Date/time calculator**~~ | Medium | Low | Done. Calendar-aware date math, timezone conversion, duration units. Moved time out of math-calc. |
 | 5 | ~~**Project profile**~~ | High | Low-Med | Done. Auto-detect languages, framework, scripts, config. Manual conventions. SQLite-backed. |
 | 6 | ~~**JSON toolkit**~~ | High | Low | Done. Validate, format, minify, query. Native JSON APIs, no state. |
 

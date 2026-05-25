@@ -105,7 +105,7 @@ Evaluate math expressions and convert between units. Uses `Function()` construct
 | Tool | Description |
 |------|-------------|
 | `math_eval` | Evaluate arithmetic, bitwise, and Math.* expressions |
-| `unit_convert` | Convert between 13 unit categories |
+| `unit_convert` | Convert between 12 unit categories (see table below) |
 
 **Features:**
 - Expression evaluator supports all Math functions (sqrt, pow, log, sin, cos, PI, E, etc.)
@@ -117,7 +117,6 @@ Evaluate math expressions and convert between units. Uses `Function()` construct
 | Category | Units |
 |----------|-------|
 | Bytes | b, kb, mb, gb, tb, pb |
-| Time | ns, us, ms, s, min, hr, day, week, month, year |
 | Distance | nm, um, mm, cm, m, km, in, ft, yd, mi, nmi |
 | Weight | mg, g, kg, oz, lb, ton, tonne |
 | Volume | ml, l, gal, qt, pt, cup, floz, tbsp, tsp |
@@ -130,7 +129,7 @@ Evaluate math expressions and convert between units. Uses `Function()` construct
 | Angle | deg, rad, grad, turn, arcmin, arcsec |
 | Temperature | c, f, k |
 
-Notes: Bytes use binary (1024-based). Data rate distinguishes bits (bps/kbps/mbps/gbps) from bytes (b/s, kb/s, mb/s, gb/s). Month = 30 days, year = 365 days. Ton = US short ton, tonne = metric.
+Notes: Bytes use binary (1024-based). Data rate distinguishes bits (bps/kbps/mbps/gbps) from bytes (b/s, kb/s, mb/s, gb/s). Ton = US short ton, tonne = metric. For time/duration conversions, use the `time-calc` plugin.
 
 ### `project-profile.ts`
 
@@ -197,6 +196,27 @@ Persistent session memory backed by SQLite with FTS5 full-text search (BM25 rank
 - Session titles are unique; session IDs auto-tracked
 - Session-context pattern: a single `session-context` memory holds the full session record
 - Auto-backup after every write (keeps last 5), corruption detection with automatic restore
+
+### `time-calc.ts`
+
+Calendar-aware date/time calculations, timezone conversion, and duration unit conversion. Handles months and leap years correctly.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `time_calc` | Add/subtract durations from a date (calendar-aware) |
+| `time_diff` | Difference between two dates in years/months/days/hours/minutes/seconds |
+| `time_now` | Current date/time, optionally in a specific timezone |
+| `time_convert` | Convert timestamps between timezones, or convert time duration units |
+
+**Features:**
+- Calendar-aware: adding 1 month to Jan 31 = Feb 28 (not blindly +30 days)
+- Leap year aware
+- Duration parsing: `3y 2mo 5d 4h 30m 10s`
+- Timezone support via IANA identifiers (America/New_York, UTC, Asia/Tokyo, etc.)
+- Duration unit conversion: ns, us, ms, s, min, hr, day, week
+- No state, no dependencies
 
 ## Databases
 

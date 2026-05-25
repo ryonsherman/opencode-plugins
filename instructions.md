@@ -247,6 +247,25 @@ Use `regex_test` to verify patterns before using them in code. Use `regex_explai
 
 ---
 
+## Time Calc Plugin
+
+*If `time-calc.ts` is installed.*
+
+Four tools for calendar-aware date math, time differences, timezone conversion, and duration unit conversion.
+
+### Tools
+
+- **`time_calc(date?, duration, subtract?)`** — Add or subtract a duration from a date. Duration format: `3y 2mo 5d 4h 30m 10s`. Calendar-aware (handles months/leap years correctly).
+- **`time_diff(from, to)`** — Difference between two dates in years, months, days, hours, minutes, seconds, plus totals.
+- **`time_now(timezone?)`** — Current date/time, optionally in a specific IANA timezone.
+- **`time_convert(value, from, to)`** — Convert a timestamp between timezones, or convert duration units (ns, us, ms, s, min, hr, day, week).
+
+### Usage
+
+Use these tools for any date/time calculation. The model hallucinates on calendar math (especially month boundaries and leap years). Use `time_diff` for age/deadline calculations. Use `time_convert` for timezone questions or simple duration unit conversions.
+
+---
+
 ## Installation
 
 1. Run `make install` (or `make install-<name>`) from the repo to copy plugins to `~/.config/opencode/plugins/`

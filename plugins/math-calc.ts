@@ -3,8 +3,6 @@ import { type Plugin, tool } from "@opencode-ai/plugin";
 const UNIT_TABLE: Record<string, Record<string, number>> = {
   // Bytes - binary (base: bytes)
   bytes: { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3, tb: 1024 ** 4, pb: 1024 ** 5 },
-  // Time (base: seconds)
-  time: { ms: 0.001, us: 0.000001, ns: 0.000000001, s: 1, sec: 1, min: 60, hr: 3600, h: 3600, day: 86400, d: 86400, week: 604800, w: 604800, month: 2592000, year: 31536000, y: 31536000 },
   // Distance (base: meters)
   distance: { nm: 0.000000001, um: 0.000001, mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144, mi: 1609.344, nmi: 1852 },
   // Weight (base: grams)
@@ -121,7 +119,7 @@ export const MathCalcPlugin: Plugin = async () => {
 
       unit_convert: tool({
         description:
-          "Convert between units. Supports: bytes (b, kb, mb, gb, tb, pb), time (ns, us, ms, s, min, hr, day, week, month, year), distance (nm, um, mm, cm, m, km, in, ft, yd, mi, nmi), weight (mg, g, kg, oz, lb, ton, tonne), volume (ml, l, gal, qt, pt, cup, floz, tbsp, tsp), speed (m/s, km/h, mi/h, mph, kn, ft/s), data rate (bps, kbps, mbps, gbps, b/s, kb/s, mb/s, gb/s), area (sqmm, sqcm, sqm, sqkm, sqft, sqyd, sqmi, acre, ha), pressure (pa, kpa, mpa, bar, atm, psi, mmhg, torr), energy (j, kj, cal, kcal, wh, kwh, btu, ev), frequency (hz, khz, mhz, ghz, rpm), angle (deg, rad, grad, turn, arcmin, arcsec), temperature (c, f, k).",
+          "Convert between units. Supports: bytes (b, kb, mb, gb, tb, pb), distance (nm, um, mm, cm, m, km, in, ft, yd, mi, nmi), weight (mg, g, kg, oz, lb, ton, tonne), volume (ml, l, gal, qt, pt, cup, floz, tbsp, tsp), speed (m/s, km/h, mi/h, mph, kn, ft/s), data rate (bps, kbps, mbps, gbps, b/s, kb/s, mb/s, gb/s), area (sqmm, sqcm, sqm, sqkm, sqft, sqyd, sqmi, acre, ha), pressure (pa, kpa, mpa, bar, atm, psi, mmhg, torr), energy (j, kj, cal, kcal, wh, kwh, btu, ev), frequency (hz, khz, mhz, ghz, rpm), angle (deg, rad, grad, turn, arcmin, arcsec), temperature (c, f, k). For time conversions use time_convert.",
         args: {
           value: tool.schema.number().describe("The numeric value to convert"),
           from: tool.schema.string().describe("Source unit (e.g. 'gb', 'min', 'km', 'f')"),
