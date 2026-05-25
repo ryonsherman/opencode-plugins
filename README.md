@@ -13,6 +13,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | [hash-encode](#hash-encodets) | Cryptographic hashing (md5/sha1/sha256/sha512), HMAC, and encode/decode (base64/url/hex) |
 | [json-toolkit](#json-toolkitts) | Validate, format, minify, and query JSON strings |
 | [math-calc](#math-calcts) | Evaluate math expressions and convert between units (bytes, distance, weight, volume, etc.) |
+| [notepad](#notepadts) | Freeform project notes with FTS search and auto-generated NOTES.md |
 | [project-profile](#project-profilets) | Auto-detect project metadata (languages, framework, scripts) with manual conventions |
 | [regex-tester](#regex-testerts) | Test, replace, and explain regular expressions using native RegExp |
 | [session-memory](#session-memoryts) | Persistent session memory with FTS5 search, tags, scopes, and cross-session recall |
@@ -251,6 +252,28 @@ Evaluate math expressions and convert between units. Uses `Function()` construct
 
 Notes: Bytes use binary (1024-based). Data rate distinguishes bits (bps/kbps/mbps/gbps) from bytes (b/s, kb/s, mb/s, gb/s). Ton = US short ton, tonne = metric. For time/duration conversions, use the `time-calc` plugin.
 
+### `notepad.ts`
+
+Freeform project notes backed by SQLite with FTS5 search and auto-generated NOTES.md. Distinct from memory (recall/persistence) and todo (actionable tasks) — for casual jottings, references, and scratch content.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `note_add` | Add a freeform note with title, content, and tags |
+| `note_update` | Update an existing note's title, content, or tags |
+| `note_list` | List notes for the current project, filterable by tags |
+| `note_search` | FTS search across note titles, content, and tags |
+| `note_delete` | Delete a note by ID |
+
+**Features:**
+- SQLite + FTS5 with porter stemming
+- Auto-generated NOTES.md in project root (only in git repos)
+- Backup `.NOTES.md` written before each render
+- Project-scoped (uses working directory)
+- Markdown content supported in note bodies
+- Same backup/recovery mechanism as session-memory
+
 ### `project-profile.ts`
 
 Auto-detect and persist project metadata so the model has instant context without re-exploring the codebase each session. Supports manual conventions to guide code generation.
@@ -331,7 +354,8 @@ Persistent project TODO backed by SQLite with auto-generated TODO.md. Tasks pers
 | `todo_sync` | Parse a manually edited TODO.md back into the database |
 
 **Features:**
-- SQLite backend with auto-generated TODO.md in project root
+- SQLite backend with auto-generated TODO.md in project root (only in git repos)
+- Backup `.TODO.md` written before each render
 - Priority ordering (high, medium, low) and dependency tracking (blocked_by)
 - Checkbox format: `- [x] Task title (#id) [tags]` — parseable for sync
 - Detects manual file edits via content hash comparison
@@ -368,9 +392,10 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 | Codebase | `~/.opencode-memory/codebase.db` |
 | Command History | `~/.opencode-memory/command-history.db` |
 | Decision Log | `~/.opencode-memory/decision-log.db` |
+| Error Journal | `~/.opencode-memory/error-journal.db` |
+| Notepad | `~/.opencode-memory/notepad.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
 | Task Manager | `~/.opencode-memory/task-manager.db` |
-| Error Journal | `~/.opencode-memory/error-journal.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |
 
 ## Examples

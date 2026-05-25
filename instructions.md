@@ -278,6 +278,28 @@ Use `math_eval` for any non-trivial arithmetic — the model hallucinates on lar
 
 ---
 
+## Notepad Plugin
+
+*If `notepad.ts` is installed.*
+
+Five tools for freeform project notes. Backed by SQLite + FTS5 at `~/.opencode-memory/notepad.db`. Auto-generates NOTES.md in git repos.
+
+### Tools
+
+- **`note_add(title, content?, tags?)`** — Add a note with a short title, optional body, and tags.
+- **`note_update(id, title?, content?, tags?)`** — Update an existing note's fields.
+- **`note_list(tags?, all_projects?)`** — List notes for the current project.
+- **`note_search(query, all_projects?)`** — FTS search across titles, content, and tags.
+- **`note_delete(id)`** — Delete a note by ID.
+
+### When to use
+
+- For reference material, ideas, scratch content, or anything that isn't actionable (use task-manager for that) and isn't structured recall (use session-memory for that).
+- When the user says "note that...", "jot down...", "make a note about..."
+- Project-scoped by default. NOTES.md only generated in git repos.
+
+---
+
 ## Project Profile Plugin
 
 *If `project-profile.ts` is installed.*
