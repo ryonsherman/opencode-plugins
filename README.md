@@ -4,23 +4,24 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 
 ## Plugins
 
-### `regex-tester.ts`
+### `codebase-index.ts`
 
-Test, replace, and explain regular expressions using native RegExp. Pure computation — no database, no state, no dependencies.
+Local codebase indexing and search. Scans source files, splits them into line-based chunks (50-line windows, 10-line overlap), and builds an FTS5 index.
 
 **Tools:**
 
 | Tool | Description |
 |------|-------------|
-| `regex_test` | Test a pattern against a string — returns all matches with groups and indices |
-| `regex_replace` | Test a substitution — shows before/after with group references ($1, $<name>, etc.) |
-| `regex_explain` | Break down a pattern into human-readable token descriptions |
+| `codebase_index` | Scan and index a codebase directory |
+| `codebase_search` | Search indexed code using FTS5 with BM25 ranking, returns markdown results |
+| `codebase_index_status` | Check index statistics for a project or list all indexed projects |
+| `codebase_delete_index` | Delete a project's index from the database |
 
 **Features:**
-- Named groups, lookaheads/lookbehinds, lazy quantifiers all supported
-- Defaults to global flag; accepts any standard flags (g, i, m, s, u, v, d)
-- Zero-length match protection (no infinite loops)
-- Pattern validation with clear error messages
+- Auto-indexes on first search if project isn't indexed yet
+- Path filter narrowing (e.g. `src/api` or `.ts`)
+- Supports multiple projects independently
+- Same backup/recovery mechanism as session-memory
 
 ### `git-context.ts`
 
@@ -39,6 +40,24 @@ Git repository state at a glance. Shells out to git commands and returns structu
 - No persistent state — pure read-only git queries
 - Defaults to current working directory, accepts optional path override
 - Structured markdown output for easy model consumption
+
+### `regex-tester.ts`
+
+Test, replace, and explain regular expressions using native RegExp. Pure computation — no database, no state, no dependencies.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `regex_test` | Test a pattern against a string — returns all matches with groups and indices |
+| `regex_replace` | Test a substitution — shows before/after with group references ($1, $<name>, etc.) |
+| `regex_explain` | Break down a pattern into human-readable token descriptions |
+
+**Features:**
+- Named groups, lookaheads/lookbehinds, lazy quantifiers all supported
+- Defaults to global flag; accepts any standard flags (g, i, m, s, u, v, d)
+- Zero-length match protection (no infinite loops)
+- Pattern validation with clear error messages
 
 ### `session-memory.ts`
 
@@ -68,25 +87,6 @@ Persistent session memory backed by SQLite with FTS5 full-text search (BM25 rank
 - Session-context pattern: a single `session-context` memory holds the full session record
 - Auto-backup after every write (keeps last 5), corruption detection with automatic restore
 
-### `codebase-index.ts`
-
-Local codebase indexing and search. Scans source files, splits them into line-based chunks (50-line windows, 10-line overlap), and builds an FTS5 index.
-
-**Tools:**
-
-| Tool | Description |
-|------|-------------|
-| `codebase_index` | Scan and index a codebase directory |
-| `codebase_search` | Search indexed code using FTS5 with BM25 ranking, returns markdown results |
-| `codebase_index_status` | Check index statistics for a project or list all indexed projects |
-| `codebase_delete_index` | Delete a project's index from the database |
-
-**Features:**
-- Auto-indexes on first search if project isn't indexed yet
-- Path filter narrowing (e.g. `src/api` or `.ts`)
-- Supports multiple projects independently
-- Same backup/recovery mechanism as session-memory
-
 ## Databases
 
 | Database | Path |
@@ -103,19 +103,17 @@ Install all plugins:
 make install
 ```
 
-Or install individually:
-
-```bash
-make install-regex-tester
-make install-git-context
-make install-session-memory
-make install-codebase-index
-```
-
-To uninstall:
+Uninstall all plugins:
 
 ```bash
 make uninstall
+```
+
+Install or uninstall a specific plugin:
+
+```bash
+make install-<name>
+make uninstall-<name>
 ```
 
 These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.

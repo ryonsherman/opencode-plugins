@@ -34,6 +34,7 @@ $(foreach name,$(PLUGIN_NAMES),$(eval $(call PLUGIN_RULES,$(name))))
 
 DESC_codebase-index := Local codebase indexing and full-text search over source files
 DESC_git-context := Git repo state: branch, commits, dirty files, remote status, stashes
+DESC_regex-tester := Test, replace, and explain regular expressions using native RegExp
 DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
 
 list:
