@@ -192,6 +192,23 @@ Use these tools when working with JSON data — validating API responses, format
 
 ---
 
+## Math/Calc Plugin
+
+*If `math-calc.ts` is installed.*
+
+Two tools for evaluating math expressions and converting units.
+
+### Tools
+
+- **`math_eval(expression)`** — Evaluate arithmetic, bitwise, and Math.* expressions (e.g. `sqrt(144) + 2**10`, `1024 * 1024 * 3.5`).
+- **`unit_convert(value, from, to)`** — Convert between units: bytes (b–pb), time (ns–year), distance (nm–nmi), weight (mg–tonne), volume (ml–tsp), speed (m/s–kn), data rate (bps–gb/s), area (sqmm–ha), pressure (pa–torr), energy (j–ev), frequency (hz–rpm), angle (deg–arcsec), temperature (c, f, k).
+
+### Usage
+
+Use `math_eval` for any non-trivial arithmetic — the model hallucinates on large numbers, floating point, and multi-step calculations. Use `unit_convert` for byte sizes, time durations, distances, etc.
+
+---
+
 ## Project Profile Plugin
 
 *If `project-profile.ts` is installed.*

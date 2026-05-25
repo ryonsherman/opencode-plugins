@@ -20,8 +20,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | 7 | ~~**Error journal**~~ | High | Medium | Done. SQLite + FTS5, log errors, record resolutions, search past fixes. |
 | 8 | **Task queue** | High | Medium | SQLite, priority ordering, dependency tracking. |
 | 9 | **Scratch pad / TODO.md manager** | Medium | Low-Med | File-backed or SQLite, section CRUD. Could manage a project TODO.md directly. |
-| 10 | **Math/unit calculator** | Medium | Low-Med | Expression parsing is the tricky part. Could use Bun eval. |
-| 11 | **Port/process checker** | Medium | Low | Shell out to lsof/ps. But thin wrapper territory. |
+| 10 | ~~**Math/unit calculator**~~ | Medium | Low-Med | Done. Eval-based expression evaluator + unit conversion table. |
 
 ## Tier 3 — Medium Return, Moderate Effort
 

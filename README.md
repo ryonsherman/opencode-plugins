@@ -96,6 +96,42 @@ Validate, format, minify, and query JSON strings. Pure computation using native 
 - Query supports dot notation and bracket indices (e.g. `users[0].email`)
 - Returns clear error messages with parse failure details
 
+### `math-calc.ts`
+
+Evaluate math expressions and convert between units. Uses `Function()` constructor with Math.* exposed, plus a built-in unit conversion table.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `math_eval` | Evaluate arithmetic, bitwise, and Math.* expressions |
+| `unit_convert` | Convert between 13 unit categories |
+
+**Features:**
+- Expression evaluator supports all Math functions (sqrt, pow, log, sin, cos, PI, E, etc.)
+- Input validation rejects non-math code (no assignment, no strings, no imports)
+- No state, no dependencies
+
+**Unit conversion reference:**
+
+| Category | Units |
+|----------|-------|
+| Bytes | b, kb, mb, gb, tb, pb |
+| Time | ns, us, ms, s, min, hr, day, week, month, year |
+| Distance | nm, um, mm, cm, m, km, in, ft, yd, mi, nmi |
+| Weight | mg, g, kg, oz, lb, ton, tonne |
+| Volume | ml, l, gal, qt, pt, cup, floz, tbsp, tsp |
+| Speed | m/s, km/h, mi/h, mph, kn, ft/s |
+| Data rate | bps, kbps, mbps, gbps, b/s, kb/s, mb/s, gb/s |
+| Area | sqmm, sqcm, sqm, sqkm, sqft, sqyd, sqmi, acre, ha |
+| Pressure | pa, kpa, mpa, bar, atm, psi, mmhg, torr |
+| Energy | j, kj, cal, kcal, wh, kwh, btu, ev |
+| Frequency | hz, khz, mhz, ghz, rpm |
+| Angle | deg, rad, grad, turn, arcmin, arcsec |
+| Temperature | c, f, k |
+
+Notes: Bytes use binary (1024-based). Data rate distinguishes bits (bps/kbps/mbps/gbps) from bytes (b/s, kb/s, mb/s, gb/s). Month = 30 days, year = 365 days. Ton = US short ton, tonne = metric.
+
 ### `project-profile.ts`
 
 Auto-detect and persist project metadata so the model has instant context without re-exploring the codebase each session. Supports manual conventions to guide code generation.
