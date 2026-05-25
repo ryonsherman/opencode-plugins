@@ -483,13 +483,17 @@ const memoryList = tool({
       const tagSql =
         tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
+      const orderSql = args.scope === "all"
+        ? "ORDER BY m.session_id IS NULL ASC, m.id ASC"
+        : "ORDER BY m.created_at DESC";
+
       const sql = `
         SELECT m.id, m.title, m.content, m.tags, m.session_id, s.title as session_title, m.created_at, m.updated_at
         FROM memories m
         LEFT JOIN sessions s ON s.id = m.session_id
         WHERE ${scopeSql}
         ${tagSql}
-        ORDER BY m.created_at DESC
+        ${orderSql}
       `;
 
       const rows = database.query(sql).all(...params);
