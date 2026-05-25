@@ -11,16 +11,6 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | 9 | **Scratch pad / TODO.md manager** | Medium | Low-Med | File-backed or SQLite, section CRUD. Could manage a project TODO.md directly. |
 | 10 | ~~**Math/unit calculator**~~ | Medium | Low-Med | Done. Eval-based expression evaluator + unit conversion table. |
 
-## Tier 3 — Medium Return, Moderate Effort
-
-| # | Plugin | Return | Effort | Notes |
-|---|--------|--------|--------|-------|
-| 12 | ~~**Command history**~~ | Medium | Medium | Done — `command-history.ts` (log, search, list) |
-| ~~13~~ | ~~**Diff reviewer**~~ | ~~Medium~~ | ~~Medium~~ | Dropped — diff-engine + model reasoning covers this. |
-| 14 | ~~**Diff engine**~~ | Medium | Low-Med | Done — `diff-engine.ts` (Myers diff, line + char level) |
-| 15 | **Environment snapshot** | Medium | Medium | Many shell commands, JSON storage, diff logic. |
-| 16 | **CSV/table processor** | Medium | Medium | CSV parsing + query engine. Non-trivial without deps. |
-
 ## Tier 4 — Lower Return or High Effort
 
 | # | Plugin | Return | Effort | Notes |
