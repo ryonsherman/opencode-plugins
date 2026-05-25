@@ -7,10 +7,6 @@
 
 # TODO
 
-## Medium Priority
-
-- [ ] Snippet library plugin — store/recall code snippets by language and description [plugin]
-
 ## Low Priority
 
 - [ ] Dependency tracker plugin — multi-language manifest parsing, vuln DB integration [plugin]
