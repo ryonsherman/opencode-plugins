@@ -7,7 +7,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | # | Plugin | Return | Effort | Notes |
 |---|--------|--------|--------|-------|
 | 1 | ~~**Git context**~~ | High | Low | Done. Shells out to git commands, formats output. No DB needed. |
-| 2 | **Regex tester** | High | Low | Native Bun RegExp, no deps, no state. Pure computation. |
+| 2 | ~~**Regex tester**~~ | High | Low | Done. Native RegExp — test, replace, explain. No deps, no state. |
 | 3 | **Hash/encode/decode** | Medium | Low | Native Bun crypto/Buffer APIs. No deps, no state. |
 | 4 | **Date/time calculator** | Medium | Low | Native Date APIs. No deps, no state. |
 | 5 | **Project profile** | High | Low-Med | File detection is simple; needs SQLite for persistence. |

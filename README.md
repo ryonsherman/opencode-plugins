@@ -4,6 +4,24 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 
 ## Plugins
 
+### `regex-tester.ts`
+
+Test, replace, and explain regular expressions using native RegExp. Pure computation — no database, no state, no dependencies.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `regex_test` | Test a pattern against a string — returns all matches with groups and indices |
+| `regex_replace` | Test a substitution — shows before/after with group references ($1, $<name>, etc.) |
+| `regex_explain` | Break down a pattern into human-readable token descriptions |
+
+**Features:**
+- Named groups, lookaheads/lookbehinds, lazy quantifiers all supported
+- Defaults to global flag; accepts any standard flags (g, i, m, s, u, v, d)
+- Zero-length match protection (no infinite loops)
+- Pattern validation with clear error messages
+
 ### `git-context.ts`
 
 Git repository state at a glance. Shells out to git commands and returns structured markdown output. No database needed.
@@ -88,6 +106,7 @@ make install
 Or install individually:
 
 ```bash
+make install-regex-tester
 make install-git-context
 make install-session-memory
 make install-codebase-index
