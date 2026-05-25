@@ -107,6 +107,10 @@ function initSchema(database: Database): void {
   try {
     database.exec("ALTER TABLE sessions ADD COLUMN title_manual INTEGER NOT NULL DEFAULT 0");
   } catch {}
+
+  try {
+    database.exec("ALTER TABLE sessions ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
+  } catch {}
 }
 
 // --- Backup & recovery ---
@@ -254,24 +258,17 @@ function sessionTitleFromContext(content: string): string {
   return generateTitle(first);
 }
 
-function autoSetSessionTitle(database: Database, sessionId: string, content: string): void {
-  const title = sessionTitleFromContext(content);
-  if (!title) return;
-  database.query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
-}
-
-function sessionTitleFromContext(content: string): string {
-  const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
-  const first = lines[0] ?? "untitled";
-  return generateTitle(first);
-}
-
-function autoSetSessionTitle(database: Database, sessionId: string, content: string): void {
+function autoSetSessionTitle(database: Database, sessionId: string, content: string, tags?: string): void {
   const session = database.query("SELECT title_manual FROM sessions WHERE id = ?").get(sessionId) as { title_manual: number } | null;
-  if (session?.title_manual) return;
-  const title = sessionTitleFromContext(content);
-  if (!title) return;
-  database.query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+  if (!session?.title_manual) {
+    const title = sessionTitleFromContext(content);
+    if (title) {
+      database.query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+    }
+  }
+  if (tags) {
+    database.query("UPDATE sessions SET tags = ?, updated_at = datetime('now') WHERE id = ?").run(tags, sessionId);
+  }
 }
 
 // --- Tools ---
@@ -320,7 +317,7 @@ const memoryStore = tool({
       );
       if (sessionId) {
         if (memoryTitle === "session-context") {
-          autoSetSessionTitle(database, sessionId, args.content);
+          autoSetSessionTitle(database, sessionId, args.content, jsonTags(args.tags));
         } else {
           database.query(
             "UPDATE sessions SET title = COALESCE(title, ?), updated_at = datetime('now') WHERE id = ?"
@@ -621,7 +618,7 @@ const memoryUpdate = tool({
         )
         .run(newTitle, newContent, newTags, args.id);
       if (existing.session_id && (newTitle === "session-context" || existing.title === "session-context")) {
-        autoSetSessionTitle(database, existing.session_id, newContent);
+        autoSetSessionTitle(database, existing.session_id, newContent, newTags);
       }
       return JSON.stringify({ updated: true, id: args.id });
     });
@@ -659,7 +656,7 @@ const memorySessions = tool({
       const database = getDb();
       const rows = database
         .query(`
-          SELECT s.id, s.title, COUNT(m.id) as memory_count,
+          SELECT s.id, s.title, s.tags, COUNT(m.id) as memory_count,
                  MAX(m.created_at) as last_memory_at
           FROM sessions s
           LEFT JOIN memories m ON m.session_id = s.id
@@ -674,32 +671,48 @@ const memorySessions = tool({
 
 const sessionSetTitle = tool({
   description:
-    "Give a session a human-readable short title (single word or hyphenated). Use memory_sessions first to find the session ID.",
+    "Update a session's title and/or tags. Use memory_sessions first to find the session ID. Setting a title marks it as manual (won't be auto-overwritten).",
   args: {
     id: tool.schema.string().describe("Session ID from memory_sessions"),
     title: tool.schema
       .string()
-      .describe("Short title (single word or hyphenated)"),
+      .optional()
+      .describe("Short title (single word or hyphenated). Omit to keep unchanged."),
+    tags: tool.schema
+      .array(tool.schema.string())
+      .optional()
+      .describe("Tags for the session. Omit to keep unchanged."),
   },
   execute: async (args) => {
     return writeDb(() => {
       const database = getDb();
-      const conflict = database
-        .query("SELECT id FROM sessions WHERE title = ? AND id != ?")
-        .get(args.title, args.id) as { id: string } | null;
-      if (conflict) {
-        return JSON.stringify({
-          set: false,
-          error: `Session title "${args.title}" already exists on session ${conflict.id}`,
-        });
+      if (args.title) {
+        const conflict = database
+          .query("SELECT id FROM sessions WHERE title = ? AND id != ?")
+          .get(args.title, args.id) as { id: string } | null;
+        if (conflict) {
+          return JSON.stringify({
+            set: false,
+            error: `Session title "${args.title}" already exists on session ${conflict.id}`,
+          });
+        }
+        database
+          .query("UPDATE sessions SET title = ?, title_manual = 1, updated_at = datetime('now') WHERE id = ?")
+          .run(args.title, args.id);
       }
-      const result = database
-        .query("UPDATE sessions SET title = ?, title_manual = 1, updated_at = datetime('now') WHERE id = ?")
-        .run(args.title, args.id);
+      if (args.tags) {
+        database
+          .query("UPDATE sessions SET tags = ?, updated_at = datetime('now') WHERE id = ?")
+          .run(jsonTags(args.tags), args.id);
+      }
+      if (!args.title && !args.tags) {
+        return JSON.stringify({ set: false, error: "nothing to update — provide title and/or tags" });
+      }
       return JSON.stringify({
-        set: result.changes > 0,
+        set: true,
         id: args.id,
-        title: args.title,
+        ...(args.title && { title: args.title }),
+        ...(args.tags && { tags: args.tags }),
       });
     });
   },
