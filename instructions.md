@@ -91,23 +91,18 @@ Maintain a `session-context` memory that holds the full, current session context
 
 Four tools for local full-text code search. Backed by SQLite + FTS5 at `~/.opencode-memory/codebase.db`. Files split into 50-line chunks with 10-line overlap.
 
+**Use `codebase_search` transparently for all code-related questions.** Do not wait for the user to ask — when you need to find code, understand a pattern, or answer anything about the codebase, just call `codebase_search`. It auto-indexes if needed.
+
 ### Tools
 
-- **`codebase_index(path?)`** — Index a project (auto-detects from working directory). Replaces existing index for that project.
-- **`codebase_search(query, path?, filter?, limit?)`** — FTS5 search with BM25 ranking. Returns file path, line range, and code snippet.
+- **`codebase_index(path?)`** — Index a project (auto-detects from working directory). Replaces existing index for that project. Only needed for explicit re-indexing.
+- **`codebase_search(query, path?, filter?, limit?)`** — FTS5 search with BM25 ranking. Returns file path, line range, and code snippet. Auto-indexes if project not yet indexed.
 - **`codebase_index_status(path?)`** — Check if indexed (file count, chunk count, last indexed time).
 - **`codebase_delete_index(path)`** — Remove a stale project index.
 
-### Automatic indexing
+### Transparent usage
 
-`codebase_search` auto-indexes the target project if not yet indexed. No manual `codebase_index` call needed. Use `codebase_index()` explicitly only to re-index a changed codebase.
-
-### When to search (prefer over grep/glob)
-
-- Conceptual code discovery: "find where X is implemented"
-- Understanding patterns: "how does Y work"
-- FTS5 with porter stemming + BM25 ranking beats exact matching for conceptual search
-- Fall back to grep/glob only for exact pattern matching or known target files
+When you need to understand, find, or reference anything in the codebase, just call `codebase_search` directly — no preamble, no asking permission. It's the default tool for code discovery. Fall back to grep/glob only for exact pattern matching or known target files.
 
 ---
 
