@@ -41,6 +41,23 @@ Git repository state at a glance. Shells out to git commands and returns structu
 - Defaults to current working directory, accepts optional path override
 - Structured markdown output for easy model consumption
 
+### `hash-encode.ts`
+
+Cryptographic hashing, HMAC signing, and string encoding/decoding. Pure computation using native crypto and Buffer APIs.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `hash` | Compute a hash digest (md5, sha1, sha256, sha512) with hex or base64 output |
+| `hmac` | Compute an HMAC signature with a secret key |
+| `encode` | Encode or decode a string (base64, url, hex) |
+
+**Features:**
+- No state, no dependencies — native Node crypto APIs
+- Hex and base64 output encodings for hashes
+- Bidirectional encode/decode with `decode` flag
+
 ### `regex-tester.ts`
 
 Test, replace, and explain regular expressions using native RegExp. Pure computation — no database, no state, no dependencies.
