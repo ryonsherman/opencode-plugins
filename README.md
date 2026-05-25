@@ -15,6 +15,49 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | [session-memory](#session-memoryts) | Persistent session memory with FTS5 search, tags, scopes, and cross-session recall |
 | [time-calc](#time-calcts) | Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion |
 
+## Setup
+
+```bash
+git clone git@github.com:ryonsherman/opencode-plugins.git
+cd opencode-plugins
+```
+
+Install all plugins:
+
+```bash
+make install
+```
+
+Install or uninstall a specific plugin:
+
+```bash
+make install-<name>
+make uninstall-<name>
+```
+
+Uninstall all plugins:
+
+```bash
+make uninstall
+```
+
+Show how to configure plugin instructions for OpenCode:
+
+```bash
+make instructions
+```
+
+Other useful commands:
+
+```bash
+make list        # List available plugins
+make installed   # Show which plugins are currently installed
+```
+
+These plugins only load in **plain (non-OMO) mode**. Restart OpenCode after installing or updating plugins.
+
+See `instructions.md` for detailed usage guidance and the session-context pattern.
+
 ## Plugins
 
 ### `codebase-index.ts`
@@ -238,38 +281,8 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 | Memory | `~/.opencode-memory/memories.db` |
 | Codebase | `~/.opencode-memory/codebase.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
+| Error Journal | `~/.opencode-memory/error-journal.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |
-
-## Setup
-
-Install all plugins:
-
-```bash
-make install
-```
-
-Uninstall all plugins:
-
-```bash
-make uninstall
-```
-
-Install or uninstall a specific plugin:
-
-```bash
-make install-<name>
-make uninstall-<name>
-```
-
-Show how to configure plugin instructions for OpenCode:
-
-```bash
-make instructions
-```
-
-These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.
-
-See `instructions.md` for detailed usage guidance and the session-context pattern.
 
 ## Examples
 
