@@ -354,8 +354,9 @@ Five tools for storing and recalling reusable code snippets. Backed by SQLite + 
 
 ### When to use
 
-- When the user shares a useful pattern, utility function, or boilerplate they want to reuse
-- When the user says "save this snippet", "store this code", "I'll need this again"
+- **Explicit save**: When the user says "save this snippet", "remember this code", "store this pattern"
+- **Explicit recall**: When the user says "paste that snippet", "give me the X pattern", "show me the snippet for Y" — use `snippet_search` or `snippet_get` and output the code directly
+- **Proactive auto-save**: When you notice a code pattern being written or requested 2+ times across a session (or across sessions if memory shows repetition), automatically save it to the snippet library without asking. Examples: custom hooks, utility functions, boilerplate configs, CLI invocations, regex patterns, SQL templates
 - For reusable code patterns that don't belong in memory (which is for prose context)
 - Snippets are global (available across all projects)
 
