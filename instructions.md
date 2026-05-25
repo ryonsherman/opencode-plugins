@@ -98,11 +98,9 @@ Four tools for local full-text code search. Backed by SQLite + FTS5 at `~/.openc
 - **`codebase_index_status(path?)`** — Check if indexed (file count, chunk count, last indexed time).
 - **`codebase_delete_index(path)`** — Remove a stale project index.
 
-### When to index
+### Automatic indexing
 
-- First encounter with a new project
-- Codebase has changed significantly
-- Re-indexing only affects the specified project
+`codebase_search` auto-indexes the target project if not yet indexed. No manual `codebase_index` call needed. Use `codebase_index()` explicitly only to re-index a changed codebase.
 
 ### When to search (prefer over grep/glob)
 

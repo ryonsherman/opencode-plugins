@@ -381,6 +381,19 @@ const codebaseSearch = tool({
       .describe("Maximum results to return (1-50)"),
   },
   execute: async (args, ctx) => {
+    const targetPath = args.path ? args.path.replace(/\/$/, "") : (ctx.directory?.replace(/\/$/, "") || "");
+    if (targetPath) {
+      const isIndexed = readDb(() => {
+        const database = getDb();
+        const row = database
+          .query("SELECT id FROM projects WHERE root_path = ?")
+          .get(targetPath) as { id: number } | null;
+        return row !== null;
+      });
+      if (!isIndexed && existsSync(targetPath)) {
+        writeDb(() => indexProject(targetPath));
+      }
+    }
     return readDb(() => {
       const database = getDb();
       const safeQuery = args.query.replace(/-/g, " ");
@@ -390,10 +403,9 @@ const codebaseSearch = tool({
       let projectJoin = "";
       let projectWhere = "";
       if (args.path) {
-        const resolved = args.path.replace(/\/$/, "");
         projectJoin = "JOIN projects p ON c.project_id = p.id";
         projectWhere = "AND p.root_path = ?";
-        params.push(resolved);
+        params.push(targetPath);
       }
 
       let filterWhere = "";
