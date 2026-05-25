@@ -54,7 +54,7 @@ make list        # List available plugins
 make installed   # Show which plugins are currently installed
 ```
 
-These plugins only load in **plain (non-OMO) mode**. Restart OpenCode after installing or updating plugins.
+Restart OpenCode after installing or updating plugins.
 
 See `instructions.md` for detailed usage guidance and the session-context pattern.
 
