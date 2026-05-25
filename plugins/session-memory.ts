@@ -35,12 +35,17 @@ function initSchema(database: Database): void {
     CREATE TABLE IF NOT EXISTS memories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       session_id TEXT,
+      title TEXT,
       content TEXT NOT NULL,
       tags TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  try {
+    database.exec("ALTER TABLE memories ADD COLUMN title TEXT");
+  } catch {}
 
   const row = database
     .query("SELECT name FROM sqlite_master WHERE type='table' AND name='memories_fts'")
@@ -197,6 +202,12 @@ const memoryStore = tool({
       .describe(
         "Tags to categorize this memory, e.g. ['preference', 'project-x', 'architecture']"
       ),
+    title: tool.schema
+      .string()
+      .optional()
+      .describe(
+        "Optional short title (single word or hyphenated) for quick identification in lists"
+      ),
     global: tool.schema
       .boolean()
       .optional()
@@ -210,16 +221,18 @@ const memoryStore = tool({
       const database = getDb();
       const sessionId = ctx.sessionID ?? null;
       const stmt = database.query(
-        "INSERT INTO memories (session_id, content, tags) VALUES (?, ?, ?)"
+        "INSERT INTO memories (session_id, title, content, tags) VALUES (?, ?, ?, ?)"
       );
       const result = stmt.run(
         args.global ? null : sessionId,
+        args.title ?? null,
         args.content,
         jsonTags(args.tags)
       );
       return JSON.stringify({
         stored: true,
         id: Number(result.lastInsertRowid),
+        title: args.title ?? null,
         scope: args.global ? "global" : "session",
       });
     });
@@ -299,7 +312,7 @@ const memoryRetrieve = tool({
         tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
-        SELECT m.id, m.content, m.tags, m.session_id, m.created_at, rank
+        SELECT m.id, m.title, m.content, m.tags, m.session_id, m.created_at, rank
         FROM memories_fts
         JOIN memories m ON m.id = memories_fts.rowid
         WHERE memories_fts MATCH ?
@@ -315,6 +328,7 @@ const memoryRetrieve = tool({
         const result = useSummaries
           ? rows.map((r: any) => ({
               id: r.id,
+              title: r.title,
               tags: r.tags,
               session_id: r.session_id,
               created_at: r.created_at,
@@ -432,7 +446,7 @@ const memoryList = tool({
         tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
-        SELECT id, content, tags, session_id, created_at, updated_at
+        SELECT id, title, content, tags, session_id, created_at, updated_at
         FROM memories
         WHERE ${scopeSql}
         ${tagSql}
@@ -465,7 +479,7 @@ const memoryDelete = tool({
 
 const memoryUpdate = tool({
   description:
-    "Update an existing memory's content and/or tags by ID. Omit content or tags to keep the current value.",
+    "Update an existing memory's content and/or tags by ID. Omit content, tags, or title to keep the current value.",
   args: {
     id: tool.schema.number().describe("ID of the memory to update"),
     content: tool.schema
@@ -476,23 +490,28 @@ const memoryUpdate = tool({
       .array(tool.schema.string())
       .optional()
       .describe("New tags (omit to keep unchanged)"),
+    title: tool.schema
+      .string()
+      .optional()
+      .describe("New title (omit to keep unchanged, null to clear)"),
   },
   execute: async (args) => {
     return writeDb(() => {
       const database = getDb();
       const existing = database
-        .query("SELECT content, tags FROM memories WHERE id = ?")
-        .get(args.id) as { content: string; tags: string } | null;
+        .query("SELECT title, content, tags FROM memories WHERE id = ?")
+        .get(args.id) as { title: string | null; content: string; tags: string } | null;
       if (!existing) {
         return JSON.stringify({ updated: false, id: args.id, error: "not found" });
       }
       const newContent = args.content ?? existing.content;
       const newTags = args.tags !== undefined ? jsonTags(args.tags) : existing.tags;
+      const newTitle = args.title !== undefined ? args.title : existing.title;
       database
         .query(
-          "UPDATE memories SET content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE memories SET title = ?, content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
         )
-        .run(newContent, newTags, args.id);
+        .run(newTitle, newContent, newTags, args.id);
       return JSON.stringify({ updated: true, id: args.id });
     });
   },
