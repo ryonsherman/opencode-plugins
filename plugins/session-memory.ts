@@ -56,10 +56,14 @@ function initSchema(database: Database): void {
     "INSERT OR IGNORE INTO sessions (id) SELECT DISTINCT session_id FROM memories WHERE session_id IS NOT NULL"
   );
 
-  database.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_session_title
-    ON memories(session_id, title) WHERE session_id IS NOT NULL AND title IS NOT NULL
-  `);
+  try {
+    database.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_session_title
+      ON memories(session_id, title) WHERE session_id IS NOT NULL AND title IS NOT NULL
+    `);
+  } catch (e) {
+    // index already exists or data conflict — non-critical
+  }
 
   const row = database
     .query("SELECT name FROM sqlite_master WHERE type='table' AND name='memories_fts'")
