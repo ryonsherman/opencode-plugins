@@ -31,8 +31,9 @@ endef
 
 $(foreach name,$(PLUGIN_NAMES),$(eval $(call PLUGIN_RULES,$(name))))
 
-DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
 DESC_codebase-index := Local codebase indexing and full-text search over source files
+DESC_git-context := Git repo state: branch, commits, dirty files, remote status, stashes
+DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
 
 list:
 	@echo "Available plugins:"
