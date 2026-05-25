@@ -45,6 +45,7 @@ DESC_math-calc := Evaluate math expressions and convert between units (bytes, di
 DESC_project-profile := Auto-detect project metadata (languages, framework, scripts) with manual conventions
 DESC_regex-tester := Test, replace, and explain regular expressions using native RegExp
 DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
+DESC_task-manager := Persistent TODO with SQLite backend and auto-generated TODO.md
 DESC_time-calc := Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion
 
 list:

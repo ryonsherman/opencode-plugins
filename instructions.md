@@ -316,6 +316,37 @@ Use `regex_test` to verify patterns before using them in code. Use `regex_explai
 
 ---
 
+## Task Manager Plugin
+
+*If `task-manager.ts` is installed.*
+
+Four tools for persistent, project-scoped TODO management with auto-generated TODO.md.
+
+### Tools
+
+- **`todo_add(title, priority?, tags?, blocked_by?)`** — Add a task. Priority defaults to medium.
+- **`todo_update(id, status?, title?, priority?, tags?, blocked_by?)`** — Update a task. Status: pending, in_progress, completed, cancelled.
+- **`todo_list(status?, priority?, tags?, all_projects?)`** — List tasks for the current project.
+- **`todo_sync(path?)`** — Sync manual edits from TODO.md back into the database.
+
+### Behavior
+
+- Every `todo_add` and `todo_update` regenerates the project's TODO.md automatically.
+- TODO.md is the human-readable view; the database is the source of truth.
+- If someone edits TODO.md manually, call `todo_sync` to pull changes back into the DB.
+- New lines in TODO.md without `(#id)` are treated as new tasks on sync.
+- Checkbox state changes in the file update task status on sync.
+- Tasks are project-scoped based on working directory.
+
+### When to use
+
+- Use `todo_add` when the user asks to create a task, or when planning multi-step work.
+- Use `todo_update` to mark tasks complete as you finish them.
+- Use `todo_list` at the start of a session to see what's outstanding.
+- Do NOT use this for ephemeral in-flight tracking — use opencode's built-in TodoWrite for that.
+
+---
+
 ## Time Calc Plugin
 
 *If `time-calc.ts` is installed.*

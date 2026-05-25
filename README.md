@@ -16,6 +16,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | [project-profile](#project-profilets) | Auto-detect project metadata (languages, framework, scripts) with manual conventions |
 | [regex-tester](#regex-testerts) | Test, replace, and explain regular expressions using native RegExp |
 | [session-memory](#session-memoryts) | Persistent session memory with FTS5 search, tags, scopes, and cross-session recall |
+| [task-manager](#task-managerts) | Persistent TODO with SQLite backend and auto-generated TODO.md |
 | [time-calc](#time-calcts) | Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion |
 
 ## Setup
@@ -316,6 +317,28 @@ Persistent session memory backed by SQLite with FTS5 full-text search (BM25 rank
 - Session-context pattern: a single `session-context` memory holds the full session record
 - Auto-backup after every write (keeps last 5), corruption detection with automatic restore
 
+### `task-manager.ts`
+
+Persistent project TODO backed by SQLite with auto-generated TODO.md. Tasks persist across sessions and the markdown file is regenerated after every change. Supports syncing manual edits back from the file.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `todo_add` | Add a task with priority, tags, and optional blocking dependency |
+| `todo_update` | Update status, priority, title, or other fields |
+| `todo_list` | List tasks filtered by status, priority, tags, or project |
+| `todo_sync` | Parse a manually edited TODO.md back into the database |
+
+**Features:**
+- SQLite backend with auto-generated TODO.md in project root
+- Priority ordering (high, medium, low) and dependency tracking (blocked_by)
+- Checkbox format: `- [x] Task title (#id) [tags]` — parseable for sync
+- Detects manual file edits via content hash comparison
+- New tasks added to TODO.md without an ID are imported on sync
+- Project-scoped (uses working directory)
+- Same backup/recovery mechanism as session-memory
+
 ### `time-calc.ts`
 
 Calendar-aware date/time calculations, timezone conversion, and duration unit conversion. Handles months and leap years correctly.
@@ -346,6 +369,7 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 | Command History | `~/.opencode-memory/command-history.db` |
 | Decision Log | `~/.opencode-memory/decision-log.db` |
 | Project Profile | `~/.opencode-memory/project-profile.db` |
+| Task Manager | `~/.opencode-memory/task-manager.db` |
 | Error Journal | `~/.opencode-memory/error-journal.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |
 

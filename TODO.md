@@ -6,10 +6,9 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 
 | # | Plugin | Return | Effort | Notes |
 |---|--------|--------|--------|-------|
-| 8 | **Task queue** | High | Medium | SQLite, priority ordering, dependency tracking. Overlaps with opencode's TodoWrite. |
-| 9 | **Scratch pad / TODO.md manager** | Medium | Low-Med | File-backed or SQLite, section CRUD. Overlaps with TodoWrite. |
+| 9 | **Notepad** | Medium | Low | Freeform notes/scratchpad. Distinct from memory and todo. |
+| 19 | **Snippet library** | Low-Med | Medium | Store/recall code snippets by language and description. |
 | 17 | **Dependency tracker** | Medium | High | Multi-language manifest parsing, vuln DB integration. |
-| 19 | **Snippet library** | Low-Med | Medium | Overlaps with memory. Marginal value over tags. |
 
 ---
 
