@@ -198,8 +198,21 @@ function stringify(value: unknown): string {
 
 function ensureSession(sessionId: string | null): void {
   if (!sessionId) return;
-  const database = getDb();
-  database.query("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
+  getDb().query("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
+}
+
+function generateTitle(text: string): string {
+  const cleaned = text
+    .replace(/\n.*$/, "")
+    .replace(/[^a-zA-Z0-9\s-]/g, "")
+    .trim();
+  if (cleaned.length <= 40) {
+    return cleaned.toLowerCase().replace(/\s+/g, "-");
+  }
+  const truncated = cleaned.slice(0, 40);
+  const lastSpace = truncated.lastIndexOf(" ");
+  const final = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
+  return final.toLowerCase().replace(/\s+/g, "-");
 }
 
 // --- Tools ---
@@ -236,19 +249,26 @@ const memoryStore = tool({
       const database = getDb();
       const sessionId = args.global ? null : (ctx.sessionID ?? null);
       ensureSession(sessionId);
+      const memoryTitle = args.title ?? generateTitle(args.content);
       const stmt = database.query(
         "INSERT INTO memories (session_id, title, content, tags) VALUES (?, ?, ?, ?)"
       );
       const result = stmt.run(
         sessionId,
-        args.title ?? null,
+        memoryTitle,
         args.content,
         jsonTags(args.tags)
       );
+      if (sessionId) {
+        database.query(
+          "UPDATE sessions SET title = COALESCE(title, ?), updated_at = datetime('now') WHERE id = ?"
+        ).run(memoryTitle, sessionId);
+      }
       return JSON.stringify({
         stored: true,
         id: Number(result.lastInsertRowid),
-        title: args.title ?? null,
+        title: memoryTitle,
+        auto_title: args.title === undefined,
         scope: args.global ? "global" : "session",
       });
     });
