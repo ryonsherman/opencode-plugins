@@ -58,6 +58,24 @@ Cryptographic hashing, HMAC signing, and string encoding/decoding. Pure computat
 - Hex and base64 output encodings for hashes
 - Bidirectional encode/decode with `decode` flag
 
+### `json-toolkit.ts`
+
+Validate, format, minify, and query JSON strings. Pure computation using native `JSON.parse`/`JSON.stringify`.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `json_validate` | Check if a string is valid JSON, report error with position |
+| `json_format` | Pretty-print with configurable indentation |
+| `json_minify` | Compact single-line output |
+| `json_query` | Access nested values by dot/bracket path |
+
+**Features:**
+- No state, no dependencies — native JSON APIs
+- Query supports dot notation and bracket indices (e.g. `users[0].email`)
+- Returns clear error messages with parse failure details
+
 ### `project-profile.ts`
 
 Auto-detect and persist project metadata so the model has instant context without re-exploring the codebase each session. Supports manual conventions to guide code generation.
@@ -152,6 +170,12 @@ Install or uninstall a specific plugin:
 ```bash
 make install-<name>
 make uninstall-<name>
+```
+
+Show how to configure plugin instructions for OpenCode:
+
+```bash
+make instructions
 ```
 
 These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.

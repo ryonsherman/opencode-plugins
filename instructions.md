@@ -153,21 +153,22 @@ Use these tools whenever the user asks to hash, encode, or decode something. The
 
 ---
 
-## Regex Tester Plugin
+## JSON Toolkit Plugin
 
-*If `regex-tester.ts` is installed.*
+*If `json-toolkit.ts` is installed.*
 
-Three tools for testing, replacing, and explaining regular expressions.
+Four tools for validating, formatting, minifying, and querying JSON strings.
 
 ### Tools
 
-- **`regex_test(pattern, input, flags?)`** — Test a pattern against a string. Returns all matches with groups and indices. Defaults to global flag.
-- **`regex_replace(pattern, input, replacement, flags?)`** — Test a substitution. Shows before/after with group references ($1, $<name>, etc.).
-- **`regex_explain(pattern, flags?)`** — Break down a pattern into human-readable token descriptions.
+- **`json_validate(input)`** — Check if a string is valid JSON. Returns success or error with position.
+- **`json_format(input, indent?)`** — Pretty-print JSON with configurable indentation (default: 2 spaces).
+- **`json_minify(input)`** — Compact JSON to a single line with no whitespace.
+- **`json_query(input, path)`** — Access a nested value using dot/bracket notation (e.g. `users[0].email`).
 
 ### Usage
 
-Use `regex_test` to verify patterns before using them in code. Use `regex_explain` when the user asks what a regex does or when you need to reason about a complex pattern.
+Use these tools when working with JSON data — validating API responses, formatting config files, or extracting values from large JSON blobs. The query tool avoids the need to parse and navigate JSON mentally.
 
 ---
 
@@ -188,6 +189,24 @@ Five tools for auto-detecting project metadata and managing conventions. Backed 
 ### Usage
 
 Use `project_profile` at session start to get instant context about the project. Conventions are manually added rules that guide how code should be written — follow them when generating code for that project. If the project structure has changed significantly (new framework, language, or major restructure), use `project_scan` to refresh the profile.
+
+---
+
+## Regex Tester Plugin
+
+*If `regex-tester.ts` is installed.*
+
+Three tools for testing, replacing, and explaining regular expressions.
+
+### Tools
+
+- **`regex_test(pattern, input, flags?)`** — Test a pattern against a string. Returns all matches with groups and indices. Defaults to global flag.
+- **`regex_replace(pattern, input, replacement, flags?)`** — Test a substitution. Shows before/after with group references ($1, $<name>, etc.).
+- **`regex_explain(pattern, flags?)`** — Break down a pattern into human-readable token descriptions.
+
+### Usage
+
+Use `regex_test` to verify patterns before using them in code. Use `regex_explain` when the user asks what a regex does or when you need to reason about a complex pattern.
 
 ---
 

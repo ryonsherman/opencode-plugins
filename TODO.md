@@ -11,7 +11,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | 3 | ~~**Hash/encode/decode**~~ | Medium | Low | Done. Native crypto/Buffer APIs — hash, HMAC, base64/url/hex encode/decode. |
 | 4 | **Date/time calculator** | Medium | Low | Native Date APIs. No deps, no state. |
 | 5 | ~~**Project profile**~~ | High | Low-Med | Done. Auto-detect languages, framework, scripts, config. Manual conventions. SQLite-backed. |
-| 6 | **JSON/YAML validator** | High | Low-Med | JSON native, jq/yq via shell. No persistent state. |
+| 6 | ~~**JSON toolkit**~~ | High | Low | Done. Validate, format, minify, query. Native JSON APIs, no state. |
 
 ## Tier 2 — High Return, Moderate Effort
 

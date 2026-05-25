@@ -2,7 +2,7 @@ PLUGIN_DIR := $(HOME)/.config/opencode/plugins
 PLUGINS := $(wildcard plugins/*.ts)
 PLUGIN_NAMES := $(notdir $(basename $(PLUGINS)))
 
-.PHONY: install uninstall list installed install-instructions help $(addprefix install-,$(PLUGIN_NAMES)) $(addprefix uninstall-,$(PLUGIN_NAMES))
+.PHONY: install uninstall list installed instructions help $(addprefix install-,$(PLUGIN_NAMES)) $(addprefix uninstall-,$(PLUGIN_NAMES))
 
 help:
 	@echo "Usage:"
@@ -12,7 +12,7 @@ help:
 	@echo "  make uninstall-<name>     Uninstall a specific plugin"
 	@echo "  make list                 List available plugins"
 	@echo "  make installed            Show installed plugins"
-	@echo "  make install-instructions Show how to set up instructions"
+	@echo "  make instructions         Show how to set up instructions"
 	@echo ""
 	@$(MAKE) --no-print-directory list
 
@@ -36,6 +36,7 @@ $(foreach name,$(PLUGIN_NAMES),$(eval $(call PLUGIN_RULES,$(name))))
 DESC_codebase-index := Local codebase indexing and full-text search over source files
 DESC_git-context := Git repo state: branch, commits, dirty files, remote status, stashes
 DESC_hash-encode := Cryptographic hashing (md5/sha1/sha256/sha512), HMAC, and encode/decode (base64/url/hex)
+DESC_json-toolkit := Validate, format, minify, and query JSON strings
 DESC_project-profile := Auto-detect project metadata (languages, framework, scripts) with manual conventions
 DESC_regex-tester := Test, replace, and explain regular expressions using native RegExp
 DESC_session-memory := Persistent session memory with FTS5 search, tags, scopes, and cross-session recall
@@ -48,7 +49,7 @@ installed:
 	@echo "Installed plugins ($(PLUGIN_DIR)):"
 	@found=0; $(foreach name,$(PLUGIN_NAMES),if [ -f "$(PLUGIN_DIR)/$(name).ts" ]; then printf "  %-20s %s\n" "$(name)" "$(DESC_$(name))"; found=1; fi;) if [ "$$found" = "0" ]; then echo "  (none)"; fi
 
-install-instructions:
+instructions:
 	@echo "To configure plugin instructions for OpenCode:"
 	@echo ""
 	@echo "  1. Open your global instructions file:"
