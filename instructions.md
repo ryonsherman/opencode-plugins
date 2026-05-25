@@ -65,7 +65,9 @@ If unsure whether to store, **store**.
 
 ### Display format
 
-When listing memories via `memory_list` or `memory_retrieve`, present as a markdown table: ID, Title, Session (or "global"), Summary, Tags.
+**Always display memories as a markdown table** unless the user explicitly requests a different format (e.g. "show me the raw JSON" or "just list the titles"). This applies to `memory_list`, `memory_retrieve`, `memory_sessions`, and any other tool that returns memory data.
+
+Columns: ID, Title, Session (title or "global"), Summary (1-15 word description), Tags.
 
 `scope: "all"` sorts session memories first, then globals, both by ID ascending. `scope: "session"` sorts by most recent first.
 

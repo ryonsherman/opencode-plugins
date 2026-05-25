@@ -103,6 +103,10 @@ function initSchema(database: Database): void {
       "INSERT INTO memories_fts(rowid, content, tags) SELECT id, content, tags FROM memories"
     );
   }
+
+  try {
+    database.exec("ALTER TABLE sessions ADD COLUMN title_manual INTEGER NOT NULL DEFAULT 0");
+  } catch {}
 }
 
 // --- Backup & recovery ---
@@ -244,6 +248,32 @@ function generateTitle(text: string): string {
   return final.toLowerCase().replace(/\s+/g, "-");
 }
 
+function sessionTitleFromContext(content: string): string {
+  const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+  const first = lines[0] ?? "untitled";
+  return generateTitle(first);
+}
+
+function autoSetSessionTitle(database: Database, sessionId: string, content: string): void {
+  const title = sessionTitleFromContext(content);
+  if (!title) return;
+  database.query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+}
+
+function sessionTitleFromContext(content: string): string {
+  const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+  const first = lines[0] ?? "untitled";
+  return generateTitle(first);
+}
+
+function autoSetSessionTitle(database: Database, sessionId: string, content: string): void {
+  const session = database.query("SELECT title_manual FROM sessions WHERE id = ?").get(sessionId) as { title_manual: number } | null;
+  if (session?.title_manual) return;
+  const title = sessionTitleFromContext(content);
+  if (!title) return;
+  database.query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?").run(title, sessionId);
+}
+
 // --- Tools ---
 
 const memoryStore = tool({
@@ -289,9 +319,13 @@ const memoryStore = tool({
         jsonTags(args.tags)
       );
       if (sessionId) {
-        database.query(
-          "UPDATE sessions SET title = COALESCE(title, ?), updated_at = datetime('now') WHERE id = ?"
-        ).run(memoryTitle, sessionId);
+        if (memoryTitle === "session-context") {
+          autoSetSessionTitle(database, sessionId, args.content);
+        } else {
+          database.query(
+            "UPDATE sessions SET title = COALESCE(title, ?), updated_at = datetime('now') WHERE id = ?"
+          ).run(generateTitle(args.content), sessionId);
+        }
       }
       return JSON.stringify({
         stored: true,
@@ -586,6 +620,9 @@ const memoryUpdate = tool({
           "UPDATE memories SET title = ?, content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
         )
         .run(newTitle, newContent, newTags, args.id);
+      if (existing.session_id && (newTitle === "session-context" || existing.title === "session-context")) {
+        autoSetSessionTitle(database, existing.session_id, newContent);
+      }
       return JSON.stringify({ updated: true, id: args.id });
     });
   },
@@ -657,7 +694,7 @@ const sessionSetTitle = tool({
         });
       }
       const result = database
-        .query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?")
+        .query("UPDATE sessions SET title = ?, title_manual = 1, updated_at = datetime('now') WHERE id = ?")
         .run(args.title, args.id);
       return JSON.stringify({
         set: result.changes > 0,
