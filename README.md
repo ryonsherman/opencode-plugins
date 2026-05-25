@@ -1,42 +1,72 @@
 # opencode-plugins
 
-Plugins for the [OpenCode](https://opencode.ai) CLI agent.
+Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.config/opencode/plugins/`.
 
 ## Plugins
 
 ### `session-memory.ts`
 
-Persistent session memory plugin backed by SQLite with FTS5 full-text search. Stores and retrieves context across conversations.
+Persistent session memory backed by SQLite with FTS5 full-text search (BM25 ranking, English stemming via `porter` tokenizer). Includes a `sessions` table for tracking session titles and activity.
 
-- **`memory_store`** — Store a memory for the current session (or globally)
-- **`memory_retrieve`** — Full-text search across memories with FTS5 (BM25 ranking, English stemming via `porter` tokenizer)
-- **`memory_promote`** — Promote a single session memory to global scope
-- **`memory_promote_session`** — Promote all session memories to global scope
-- **`memory_list`** — Browse memories by scope and tags
-- **`memory_delete`** — Delete a specific memory by ID
+**Tools:**
 
-**Database:** `~/.opencode-memory/memories.db` with auto-backups on every write (last 5 kept). Corruption detection with automatic restore from latest backup.
+| Tool | Description |
+|------|-------------|
+| `memory_store` | Store a memory for the current session, optionally global |
+| `memory_retrieve` | Full-text search across memories with tag filtering and scope (session/global/all) |
+| `memory_promote` | Promote a single session memory to global scope |
+| `memory_promote_session` | Promote all session memories to global scope |
+| `memory_list` | Browse memories by scope and tags, returns markdown table |
+| `memory_delete` | Delete a specific memory by ID |
+| `memory_update` | Update an existing memory's content, tags, and/or title by ID |
+| `memory_tags` | List all unique tags across all memories |
+| `memory_sessions` | List all sessions that contain memories |
+| `session_set_title` | Give a session a human-readable short title (single word or hyphenated) |
+| `memory_copy` | Copy a memory from another session to the current session |
+
+**Features:**
+- Three scopes: `session`, `global` (visible to all sessions), `all` (union, sorted session-first)
+- Tags stored as JSON text array, FTS-indexed, filtered with **AND** logic
+- Memory titles auto-generated (25-char max, hyphenated, lowercase) with deduplication within a session
+- Session titles are unique; session IDs auto-tracked
+- Session-context pattern: a single `session-context` memory holds the full session record
+- Auto-backup after every write (keeps last 5), corruption detection with automatic restore
 
 ### `codebase-index.ts`
 
-Local codebase indexing and search plugin. Scans source files, splits them into line-based chunks (50-line windows, 10-line overlap), and builds an FTS5 index for fast code search.
+Local codebase indexing and search. Scans source files, splits them into line-based chunks (50-line windows, 10-line overlap), and builds an FTS5 index.
 
-- **`codebase_index`** — Scan and index a codebase directory
-- **`codebase_search`** — Search indexed code using FTS5 with BM25 ranking
-- **`codebase_index_status`** — Check index statistics for a project
+**Tools:**
 
-**Database:** `~/.opencode-memory/codebase.db` with same backup/recovery mechanism.
+| Tool | Description |
+|------|-------------|
+| `codebase_index` | Scan and index a codebase directory |
+| `codebase_search` | Search indexed code using FTS5 with BM25 ranking, returns markdown results |
+| `codebase_index_status` | Check index statistics for a project or list all indexed projects |
+| `codebase_delete_index` | Delete a project's index from the database |
 
-**Supported extensions:** `.ts`, `.tsx`, `.js`, `.jsx`, `.py`, `.java`, `.go`, `.rs`, `.c`, `.cpp`, `.rb`, `.php`, `.css`, `.html`, `.json`, `.yaml`, `.md`, `.sql`, `.sh`, `.tf`, `.hcl` and more.
+**Features:**
+- Auto-indexes on first search if project isn't indexed yet
+- Path filter narrowing (e.g. `src/api` or `.ts`)
+- Supports multiple projects independently
+- Same backup/recovery mechanism as session-memory
 
-**Skipped:** `node_modules/`, `.git/`, `dist/`, `build/`, `vendor/`, and dot-directories.
+## Databases
 
-## Usage
+| Database | Path |
+|----------|------|
+| Memory | `~/.opencode-memory/memories.db` |
+| Codebase | `~/.opencode-memory/codebase.db` |
+| Backups | `~/.opencode-memory/backups/` (last 5 each) |
 
-OpenCode automatically loads plugins from `~/.config/opencode/plugins/`. Copy the plugin files there:
+## Setup
+
+Copy plugins to the OpenCode config directory:
 
 ```bash
 cp plugins/*.ts ~/.config/opencode/plugins/
 ```
 
-No additional configuration needed — OpenCode discovers plugins via glob in the `plugins/` directory.
+These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.
+
+See `instructions.md` for detailed usage guidance and the session-context pattern.

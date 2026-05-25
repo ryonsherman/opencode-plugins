@@ -447,22 +447,18 @@ const codebaseSearch = tool({
           grouped[key].push(r);
         }
 
-        const summary = Object.entries(grouped).map(([key, chunks]) => {
+        const parts = Object.entries(grouped).flatMap(([key, chunks]) => {
           const [root, ...rest] = key.split(":");
           const filePath = rest.join(":");
-          return {
-            file_path: filePath,
-            project_root: root,
-            matches: chunks.length,
-            chunks: chunks.map((c) => ({
-              lines: `${c.start_line}-${c.end_line}`,
-              score: Number(c.rank.toFixed(2)),
-              snippet: c.content,
-            })),
-          };
+          const header = `## \`${filePath}\` (${chunks[0].project})`;
+          const items = chunks.map(
+            (c) =>
+              `**Chunk** (lines ${c.start_line}-${c.end_line}, score: ${c.rank.toFixed(2)})\n\`\`\`\n${c.content}\n\`\`\``
+          );
+          return [header, ...items, "---"];
         });
 
-        return JSON.stringify({ results: summary }, null, 2);
+        return `Found ${rows.length} result${rows.length === 1 ? "" : "s"}:\n\n${parts.slice(0, -1).join("\n\n")}`;
       } catch (err) {
         return JSON.stringify({
           error: `Search failed: ${(err as Error).message}`,
