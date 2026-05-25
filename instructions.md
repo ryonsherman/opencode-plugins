@@ -116,6 +116,26 @@ When you need to understand, find, or reference anything in the codebase, just c
 
 ---
 
+## Error Journal Plugin
+
+*If `error-journal.ts` is installed.*
+
+Five tools for logging errors, recording resolutions, and searching past fixes. Backed by SQLite at `~/.opencode-memory/error-journal.db`.
+
+### Tools
+
+- **`error_log(error_text, context?, tags?, project?)`** — Log a new error with the message/stack and what was happening.
+- **`error_resolve(id, resolution)`** — Record how an error was fixed.
+- **`error_search(query, limit?)`** — FTS search across errors, context, and resolutions. Use when a similar error appears.
+- **`error_list(project?, tags?, resolved?, limit?)`** — List recent errors with optional filters.
+- **`error_delete(id)`** — Remove an error entry.
+
+### Usage
+
+Log errors as they occur during sessions. When you find the fix, record it with `error_resolve`. When a similar error appears in the future, use `error_search` to check for past resolutions before investigating from scratch.
+
+---
+
 ## Git Context Plugin
 
 *If `git-context.ts` is installed.*

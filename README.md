@@ -23,6 +23,26 @@ Local codebase indexing and search. Scans source files, splits them into line-ba
 - Supports multiple projects independently
 - Same backup/recovery mechanism as session-memory
 
+### `error-journal.ts`
+
+Persistent error log with full-text search and resolution tracking. Log errors as they occur, record how they were fixed, and search for past resolutions when similar errors appear.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `error_log` | Log a new error with context, tags, and optional project |
+| `error_resolve` | Add a resolution to a logged error |
+| `error_search` | FTS search across error text, context, resolutions, and tags |
+| `error_list` | List recent errors with optional filters (project, tags, resolved status) |
+| `error_delete` | Delete an error entry by ID |
+
+**Features:**
+- FTS5 index across error text, context, resolution, and tags
+- Filter by project, tags (AND logic), or resolved/unresolved status
+- Same backup/recovery mechanism as session-memory
+- Database: `~/.opencode-memory/error-journal.db`
+
 ### `git-context.ts`
 
 Git repository state at a glance. Shells out to git commands and returns structured markdown output. No database needed.

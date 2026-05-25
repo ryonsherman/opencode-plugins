@@ -17,7 +17,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 
 | # | Plugin | Return | Effort | Notes |
 |---|--------|--------|--------|-------|
-| 7 | **Error journal** | High | Medium | SQLite + FTS, proactive matching logic, structured schema. |
+| 7 | ~~**Error journal**~~ | High | Medium | Done. SQLite + FTS5, log errors, record resolutions, search past fixes. |
 | 8 | **Task queue** | High | Medium | SQLite, priority ordering, dependency tracking. |
 | 9 | **Scratch pad / TODO.md manager** | Medium | Low-Med | File-backed or SQLite, section CRUD. Could manage a project TODO.md directly. |
 | 10 | **Math/unit calculator** | Medium | Low-Med | Expression parsing is the tricky part. Could use Bun eval. |
