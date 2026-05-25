@@ -65,9 +65,13 @@ If unsure whether to store, **store**.
 
 ### Display format
 
-**Always display memories as a markdown table** unless the user explicitly requests a different format (e.g. "show me the raw JSON" or "just list the titles"). This applies to `memory_list`, `memory_retrieve`, `memory_sessions`, and any other tool that returns memory data.
+**Always display memories and sessions as markdown tables** unless the user explicitly requests a different format (e.g. "show me the raw JSON" or "just list the titles"). This applies to `memory_list`, `memory_retrieve`, `memory_sessions`, and any other tool that returns memory/session data.
 
-Columns: ID, Title, Session (title or "global"), Summary (1-15 word description), Tags.
+**Sessions columns:** ID, Title, Memories, Last Activity, Tags
+
+**Memories columns:** ID, Title, Session (title or "global"), Summary (1-15 word description), Tags
+
+Tags always go in the last column.
 
 `scope: "all"` sorts session memories first, then globals, both by ID ascending. `scope: "session"` sorts by most recent first.
 
