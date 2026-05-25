@@ -1,10 +1,12 @@
 # OpenCode Plugins — Usage Instructions
 
-Supplement your own `~/.config/opencode/instructions.md` with the relevant sections below. These plugins add persistent memory and codebase search tools to OpenCode.
+Supplement your own `~/.config/opencode/instructions.md` with the relevant sections below. These plugins add persistent memory, codebase search, and utility tools to OpenCode. Each section applies only if the corresponding plugin is installed — only use the described tools if they are available in the current session.
 
 ---
 
 ## Session Memory Plugin
+
+*If `session-memory.ts` is installed.*
 
 Eleven tools for persisting and recalling context across sessions. Backed by SQLite + FTS5 at `~/.opencode-memory/memories.db`.
 
@@ -95,6 +97,8 @@ Maintain a `session-context` memory that holds the full, current session context
 
 ## Codebase Index Plugin
 
+*If `codebase-index.ts` is installed.*
+
 Four tools for local full-text code search. Backed by SQLite + FTS5 at `~/.opencode-memory/codebase.db`. Files split into 50-line chunks with 10-line overlap.
 
 **Use `codebase_search` transparently for all code-related questions.** Do not wait for the user to ask — when you need to find code, understand a pattern, or answer anything about the codebase, just call `codebase_search`. It auto-indexes if needed.
@@ -112,8 +116,83 @@ When you need to understand, find, or reference anything in the codebase, just c
 
 ---
 
+## Git Context Plugin
+
+*If `git-context.ts` is installed.*
+
+Four tools for git repository state. Shells out to git commands with a 5-second timeout.
+
+### Tools
+
+- **`git_context(path?, limit?)`** — Full snapshot: branch, remote status, dirty files, recent commits, stashes.
+- **`git_recent(path?, limit?)`** — Last N commits with short hashes and messages.
+- **`git_dirty(path?)`** — Working tree status: staged, unstaged, and untracked files.
+- **`git_branches(path?)`** — List branches with current highlighted and last commit date.
+
+### Usage
+
+Use `git_context` at session start or whenever you need to understand the current state of a repo. Defaults to the current working directory.
+
+---
+
+## Hash/Encode Plugin
+
+*If `hash-encode.ts` is installed.*
+
+Three tools for cryptographic hashing, HMAC signing, and string encoding/decoding.
+
+### Tools
+
+- **`hash(input, algorithm?, encoding?)`** — Compute a hash digest. Algorithms: md5, sha1, sha256 (default), sha512. Output: hex (default), base64.
+- **`hmac(input, key, algorithm?, encoding?)`** — Compute an HMAC signature with a secret key.
+- **`encode(input, format?, decode?)`** — Encode or decode a string. Formats: base64 (default), url, hex. Set `decode: true` to reverse.
+
+### Usage
+
+Use these tools whenever the user asks to hash, encode, or decode something. The model cannot compute hashes correctly — always use the tool.
+
+---
+
+## Regex Tester Plugin
+
+*If `regex-tester.ts` is installed.*
+
+Three tools for testing, replacing, and explaining regular expressions.
+
+### Tools
+
+- **`regex_test(pattern, input, flags?)`** — Test a pattern against a string. Returns all matches with groups and indices. Defaults to global flag.
+- **`regex_replace(pattern, input, replacement, flags?)`** — Test a substitution. Shows before/after with group references ($1, $<name>, etc.).
+- **`regex_explain(pattern, flags?)`** — Break down a pattern into human-readable token descriptions.
+
+### Usage
+
+Use `regex_test` to verify patterns before using them in code. Use `regex_explain` when the user asks what a regex does or when you need to reason about a complex pattern.
+
+---
+
+## Project Profile Plugin
+
+*If `project-profile.ts` is installed.*
+
+Five tools for auto-detecting project metadata and managing conventions. Backed by SQLite at `~/.opencode-memory/project-profile.db`.
+
+### Tools
+
+- **`project_profile(path?)`** — Show the stored profile. Auto-scans on first access if no profile exists.
+- **`project_scan(path?)`** — Force re-scan and update (preserves conventions).
+- **`project_delete(path?)`** — Remove a stored profile.
+- **`project_convention_add(convention, path?)`** — Add a convention to guide code generation (e.g. "Use single quotes and 2-space indent").
+- **`project_convention_remove(index, path?)`** — Remove a convention by its number (1-based).
+
+### Usage
+
+Use `project_profile` at session start to get instant context about the project. Conventions are manually added rules that guide how code should be written — follow them when generating code for that project.
+
+---
+
 ## Installation
 
-1. Copy `.ts` plugin files from `plugins/` to `~/.config/opencode/plugins/`
-2. Ensure these plugins are loaded by OpenCode (they auto-load from the `plugins/` directory)
-3. Add the relevant sections from this file to your own `~/.config/opencode/instructions.md`
+1. Run `make install` (or `make install-<name>`) from the repo to copy plugins to `~/.config/opencode/plugins/`
+2. Add the relevant sections from this file to your own `~/.config/opencode/instructions.md`
+3. Restart OpenCode to load the plugins

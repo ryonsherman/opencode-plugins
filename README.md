@@ -58,6 +58,26 @@ Cryptographic hashing, HMAC signing, and string encoding/decoding. Pure computat
 - Hex and base64 output encodings for hashes
 - Bidirectional encode/decode with `decode` flag
 
+### `project-profile.ts`
+
+Auto-detect and persist project metadata so the model has instant context without re-exploring the codebase each session. Supports manual conventions to guide code generation.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `project_profile` | Show cached profile (auto-scans on first access) |
+| `project_scan` | Force re-scan and update (preserves conventions) |
+| `project_delete` | Remove a stored profile |
+| `project_convention_add` | Add a convention (e.g. style, architecture, naming) |
+| `project_convention_remove` | Remove a convention by number |
+
+**Features:**
+- Detects: languages, framework, package manager, scripts, entry points, config files, monorepo structure
+- Conventions persist across re-scans — manually added rules that guide code generation
+- One profile per project path, stored in SQLite
+- Auto-backup after every write
+
 ### `regex-tester.ts`
 
 Test, replace, and explain regular expressions using native RegExp. Pure computation — no database, no state, no dependencies.
@@ -110,6 +130,7 @@ Persistent session memory backed by SQLite with FTS5 full-text search (BM25 rank
 |----------|------|
 | Memory | `~/.opencode-memory/memories.db` |
 | Codebase | `~/.opencode-memory/codebase.db` |
+| Project Profile | `~/.opencode-memory/project-profile.db` |
 | Backups | `~/.opencode-memory/backups/` (last 5 each) |
 
 ## Setup
