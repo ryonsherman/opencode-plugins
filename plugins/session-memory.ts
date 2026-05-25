@@ -582,7 +582,7 @@ const memoryDelete = tool({
 
 const memoryUpdate = tool({
   description:
-    "Update an existing memory's content and/or tags by ID. Omit content, tags, or title to keep the current value.",
+    "Update an existing memory's content, tags, title, or scope by ID. Omit fields to keep current values. Use global to change scope (true = global, false = move to current session).",
   args: {
     id: tool.schema.number().describe("ID of the memory to update"),
     content: tool.schema
@@ -597,8 +597,12 @@ const memoryUpdate = tool({
       .string()
       .optional()
       .describe("New title (omit to keep unchanged, null to clear)"),
+    global: tool.schema
+      .boolean()
+      .optional()
+      .describe("Change scope: true = global (visible to all sessions), false = move to current session"),
   },
-  execute: async (args) => {
+  execute: async (args, ctx) => {
     return writeDb(() => {
       const database = getDb();
       const existing = database
@@ -609,16 +613,19 @@ const memoryUpdate = tool({
       }
       const newContent = args.content ?? existing.content;
       const newTags = args.tags !== undefined ? jsonTags(args.tags) : existing.tags;
+      const newSessionId = args.global !== undefined
+        ? (args.global ? null : (ctx.sessionID ?? existing.session_id))
+        : existing.session_id;
       const newTitle = args.title !== undefined
-        ? uniqueMemoryTitle(database, existing.session_id, args.title, args.id)
+        ? uniqueMemoryTitle(database, newSessionId, args.title, args.id)
         : existing.title;
       database
         .query(
-          "UPDATE memories SET title = ?, content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
+          "UPDATE memories SET session_id = ?, title = ?, content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
         )
-        .run(newTitle, newContent, newTags, args.id);
-      if (existing.session_id && (newTitle === "session-context" || existing.title === "session-context")) {
-        autoSetSessionTitle(database, existing.session_id, newContent, newTags);
+        .run(newSessionId, newTitle, newContent, newTags, args.id);
+      if (newSessionId && (newTitle === "session-context" || existing.title === "session-context")) {
+        autoSetSessionTitle(database, newSessionId, newContent, newTags);
       }
       return JSON.stringify({ updated: true, id: args.id });
     });
