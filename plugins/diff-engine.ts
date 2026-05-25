@@ -1,90 +1,100 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 
-type DiffOp = [number, string]; // [0=equal, -1=remove, 1=add, value]
+type Edit = { type: "equal" | "insert" | "delete"; value: string };
 
-function myersDiff(a: string[], b: string[]): DiffOp[] {
+function shortestEdit(a: string[], b: string[]): number[][] {
   const n = a.length;
   const m = b.length;
   const max = n + m;
-  const v: number[] = new Array(2 * max + 1);
+  const v = new Array(2 * max + 1).fill(0);
+  v[1 + max] = 0; // offset index by max
   const trace: number[][] = [];
-  v[max + 1] = 0;
 
   for (let d = 0; d <= max; d++) {
-    trace.push([...v]);
+    trace.push(v.slice());
     for (let k = -d; k <= d; k += 2) {
-      const idx = k + max;
       let x: number;
-      if (k === -d || (k !== d && v[idx - 1] < v[idx + 1])) {
-        x = v[idx + 1];
+      if (k === -d || (k !== d && v[k - 1 + max] < v[k + 1 + max])) {
+        x = v[k + 1 + max]; // move down
       } else {
-        x = v[idx - 1] + 1;
+        x = v[k - 1 + max] + 1; // move right
       }
       let y = x - k;
       while (x < n && y < m && a[x] === b[y]) {
         x++;
         y++;
       }
-      v[idx] = x;
-      if (x >= n && y >= m) {
-        return backtrack(trace, a, b, max);
+      v[k + max] = x;
+      if (x === n && y === m) {
+        return trace;
       }
     }
   }
-  return backtrack(trace, a, b, max);
+  return trace;
 }
 
-function backtrack(trace: number[][], a: string[], b: string[], max: number): DiffOp[] {
-  const ops: DiffOp[] = [];
+function backtrack(trace: number[][], a: string[], b: string[]): Edit[] {
   let x = a.length;
   let y = b.length;
+  const max = a.length + b.length;
+  const edits: Edit[] = [];
 
-  for (let d = trace.length - 1; d > 0; d--) {
-    const v = trace[d - 1];
+  for (let d = trace.length - 1; d >= 0; d--) {
+    const v = trace[d];
     const k = x - y;
-    const idx = k + max;
+
     let prevK: number;
-    if (k === -d || (k !== d && v[idx - 1] < v[idx + 1])) {
+    if (k === -d || (k !== d && v[k - 1 + max] < v[k + 1 + max])) {
       prevK = k + 1;
     } else {
       prevK = k - 1;
     }
+
     const prevX = v[prevK + max];
     const prevY = prevX - prevK;
 
+    // Diagonal moves (equals)
     while (x > prevX && y > prevY) {
       x--;
       y--;
-      ops.push([0, a[x]]);
+      edits.push({ type: "equal", value: a[x] });
     }
-    if (x > prevX) {
-      x--;
-      ops.push([-1, a[x]]);
-    } else if (y > prevY) {
-      y--;
-      ops.push([1, b[y]]);
+
+    if (d > 0) {
+      if (x === prevX) {
+        // moved down: insert
+        y--;
+        edits.push({ type: "insert", value: b[y] });
+      } else {
+        // moved right: delete
+        x--;
+        edits.push({ type: "delete", value: a[x] });
+      }
     }
   }
-  while (x > 0 && y > 0) {
-    x--;
-    y--;
-    ops.push([0, a[x]]);
-  }
-  return ops.reverse();
+
+  return edits.reverse();
 }
 
-function formatUnified(ops: DiffOp[], context: number): string {
+function myersDiff(a: string[], b: string[]): Edit[] {
+  if (a.length === 0 && b.length === 0) return [];
+  if (a.length === 0) return b.map(v => ({ type: "insert" as const, value: v }));
+  if (b.length === 0) return a.map(v => ({ type: "delete" as const, value: v }));
+  const trace = shortestEdit(a, b);
+  return backtrack(trace, a, b);
+}
+
+function formatUnified(edits: Edit[], context: number): string {
   const lines: string[] = [];
-  for (let i = 0; i < ops.length; i++) {
-    const [type, value] = ops[i];
-    if (type === 0) {
-      // Check if this equal line is within context range of a change
+  for (let i = 0; i < edits.length; i++) {
+    const { type, value } = edits[i];
+    if (type === "equal") {
       let nearChange = false;
-      for (let j = Math.max(0, i - context); j <= Math.min(ops.length - 1, i + context); j++) {
-        if (ops[j][0] !== 0) { nearChange = true; break; }
+      for (let j = Math.max(0, i - context); j <= Math.min(edits.length - 1, i + context); j++) {
+        if (edits[j].type !== "equal") { nearChange = true; break; }
       }
       if (nearChange) lines.push(` ${value}`);
-    } else if (type === -1) {
+    } else if (type === "delete") {
       lines.push(`-${value}`);
     } else {
       lines.push(`+${value}`);
@@ -93,11 +103,11 @@ function formatUnified(ops: DiffOp[], context: number): string {
   return lines.join("\n");
 }
 
-function diffStats(ops: DiffOp[]): { additions: number; deletions: number; unchanged: number } {
+function stats(edits: Edit[]) {
   let additions = 0, deletions = 0, unchanged = 0;
-  for (const [type] of ops) {
-    if (type === 1) additions++;
-    else if (type === -1) deletions++;
+  for (const e of edits) {
+    if (e.type === "insert") additions++;
+    else if (e.type === "delete") deletions++;
     else unchanged++;
   }
   return { additions, deletions, unchanged };
@@ -123,11 +133,11 @@ export const DiffEnginePlugin: Plugin = async () => {
             return "No differences found.";
           }
 
-          const ops = myersDiff(a, b);
-          const stats = diffStats(ops);
-          const diff = formatUnified(ops, context);
+          const edits = myersDiff(a, b);
+          const s = stats(edits);
+          const diff = formatUnified(edits, context);
 
-          return `${diff}\n\n---\n${stats.additions} addition(s), ${stats.deletions} deletion(s), ${stats.unchanged} unchanged line(s)`;
+          return `${diff}\n\n---\n${s.additions} addition(s), ${s.deletions} deletion(s), ${s.unchanged} unchanged line(s)`;
         },
       }),
 
@@ -145,26 +155,26 @@ export const DiffEnginePlugin: Plugin = async () => {
 
           const a = args.old_text.split("");
           const b = args.new_text.split("");
-          const ops = myersDiff(a, b);
+          const edits = myersDiff(a, b);
 
-          // Group consecutive ops of same type
-          const segments: { type: number; text: string }[] = [];
-          for (const [type, ch] of ops) {
-            if (segments.length > 0 && segments[segments.length - 1].type === type) {
-              segments[segments.length - 1].text += ch;
+          // Group consecutive edits of same type
+          const segments: { type: string; text: string }[] = [];
+          for (const e of edits) {
+            if (segments.length > 0 && segments[segments.length - 1].type === e.type) {
+              segments[segments.length - 1].text += e.value;
             } else {
-              segments.push({ type, text: ch });
+              segments.push({ type: e.type, text: e.value });
             }
           }
 
           const parts = segments.map((s) => {
-            if (s.type === 0) return s.text;
-            if (s.type === -1) return `[-${s.text}-]`;
+            if (s.type === "equal") return s.text;
+            if (s.type === "delete") return `[-${s.text}-]`;
             return `{+${s.text}+}`;
           });
 
-          const stats = diffStats(ops);
-          return `${parts.join("")}\n\n---\n${stats.additions} char(s) added, ${stats.deletions} char(s) removed, ${stats.unchanged} unchanged`;
+          const s = stats(edits);
+          return `${parts.join("")}\n\n---\n${s.additions} char(s) added, ${s.deletions} char(s) removed, ${s.unchanged} unchanged`;
         },
       }),
     },
