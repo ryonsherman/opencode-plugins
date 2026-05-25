@@ -348,9 +348,10 @@ const memoryRetrieve = tool({
         tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
-        SELECT m.id, m.title, m.content, m.tags, m.session_id, m.created_at, rank
+        SELECT m.id, m.title, m.content, m.tags, m.session_id, s.title as session_title, m.created_at, rank
         FROM memories_fts
         JOIN memories m ON m.id = memories_fts.rowid
+        LEFT JOIN sessions s ON s.id = m.session_id
         WHERE memories_fts MATCH ?
           AND ${scopeSql}
           ${tagSql}
@@ -367,6 +368,7 @@ const memoryRetrieve = tool({
               title: r.title,
               tags: r.tags,
               session_id: r.session_id,
+              session_title: r.session_title,
               created_at: r.created_at,
               rank: r.rank,
               summary: r.content.length > 200
@@ -482,11 +484,12 @@ const memoryList = tool({
         tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
-        SELECT id, title, content, tags, session_id, created_at, updated_at
-        FROM memories
+        SELECT m.id, m.title, m.content, m.tags, m.session_id, s.title as session_title, m.created_at, m.updated_at
+        FROM memories m
+        LEFT JOIN sessions s ON s.id = m.session_id
         WHERE ${scopeSql}
         ${tagSql}
-        ORDER BY created_at DESC
+        ORDER BY m.created_at DESC
       `;
 
       const rows = database.query(sql).all(...params);
