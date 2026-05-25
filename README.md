@@ -70,3 +70,70 @@ cp plugins/*.ts ~/.config/opencode/plugins/
 These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.
 
 See `instructions.md` for detailed usage guidance and the session-context pattern.
+
+## Examples
+
+### Memory — store and retrieve
+
+```
+> memory_store content="Found that the payment service uses Stripe API v3" tags="stripe,payment,api"
+{"stored": true, "id": 42, "title": "found-that-the-payment-ser"}
+```
+
+```
+> memory_retrieve query="stripe" scope="all"
+| ID | Title | Session | Summary | Tags |
+|----|-------|---------|---------|------|
+| 42 | found-that-the-payment-ser | current | Found that the payment service uses Stripe API v3 | stripe, payment, api |
+```
+
+### Memory — list sessions
+
+```
+> memory_sessions
+| ID | Title | Memories | Last Activity |
+|----|-------|----------|---------------|
+| abc-123 | payment-api-investigation | 5 | 2026-05-25T13:00:00Z |
+| def-456 | deploy-fix | 2 | 2026-05-24T09:00:00Z |
+```
+
+### Codebase — index and search
+
+```
+> codebase_index path="/Users/me/my-project"
+{"indexed": true, "path": "/Users/me/my-project", "files": 42, "chunks": 320}
+```
+
+```
+> codebase_search query="payment webhook handler" path="/Users/me/my-project"
+
+Found 3 results:
+
+## `src/api/webhook.ts` (my-project)
+**Chunk** (lines 45-60, score: 0.82)
+```
+async function handlePaymentWebhook(req: Request, res: Response) {
+  const signature = req.headers['stripe-signature']
+  const event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret)
+  // ...
+}
+```
+
+---
+
+## `src/api/payment.ts` (my-project)
+**Chunk** (lines 120-130, score: 0.45)
+```
+export async function createPaymentIntent(amount: number, currency: string) {
+  const intent = await stripe.paymentIntents.create({ amount, currency })
+  return intent
+}
+```
+```
+
+### Codebase — check index status
+
+```
+> codebase_index_status path="/Users/me/my-project"
+{"indexed": true, "path": "/Users/me/my-project", "name": "my-project", "files": 42, "chunks": 320, "last_indexed": "2026-05-25 12:00:00"}
+```
