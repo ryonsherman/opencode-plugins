@@ -25,13 +25,6 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 | 24 | **AST parser** | Medium | High | Needs language-specific parsers. Complex without deps. |
 | 25 | **Dependency resolver** | Low | High | Semver resolution logic is complex. |
 
-## Tier 5 — Probably Won't Implement
-
-| # | Plugin | Return | Effort | Notes |
-|---|--------|--------|--------|-------|
-| 26 | **Session timer** | Low | Low | Easy but weak value. |
-| 27 | **Clipboard bridge** | Low | Low | Overlaps with memory. |
-
 ---
 
 ## Guiding Principle
