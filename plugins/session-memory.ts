@@ -46,7 +46,7 @@ function initSchema(database: Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
-      title TEXT,
+      title TEXT UNIQUE,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
@@ -55,6 +55,11 @@ function initSchema(database: Database): void {
   database.exec(
     "INSERT OR IGNORE INTO sessions (id) SELECT DISTINCT session_id FROM memories WHERE session_id IS NOT NULL"
   );
+
+  database.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_session_title
+    ON memories(session_id, title) WHERE session_id IS NOT NULL AND title IS NOT NULL
+  `);
 
   const row = database
     .query("SELECT name FROM sqlite_master WHERE type='table' AND name='memories_fts'")
@@ -201,6 +206,26 @@ function ensureSession(sessionId: string | null): void {
   getDb().query("INSERT OR IGNORE INTO sessions (id) VALUES (?)").run(sessionId);
 }
 
+function uniqueMemoryTitle(
+  database: Database,
+  sessionId: string | null,
+  title: string,
+  excludeId?: number
+): string {
+  if (!sessionId) return title;
+  let candidate = title;
+  let suffix = 2;
+  const exclude = excludeId ?? -1;
+  while (true) {
+    const existing = database
+      .query("SELECT id FROM memories WHERE session_id = ? AND title = ? AND id != ?")
+      .get(sessionId, candidate, exclude) as { id: number } | null;
+    if (!existing) return candidate;
+    candidate = `${title}-${suffix}`;
+    suffix++;
+  }
+}
+
 function generateTitle(text: string): string {
   const cleaned = text
     .replace(/\n.*$/, "")
@@ -249,7 +274,7 @@ const memoryStore = tool({
       const database = getDb();
       const sessionId = args.global ? null : (ctx.sessionID ?? null);
       ensureSession(sessionId);
-      const memoryTitle = args.title ?? generateTitle(args.content);
+      const memoryTitle = uniqueMemoryTitle(database, sessionId, args.title ?? generateTitle(args.content));
       const stmt = database.query(
         "INSERT INTO memories (session_id, title, content, tags) VALUES (?, ?, ?, ?)"
       );
@@ -542,14 +567,16 @@ const memoryUpdate = tool({
     return writeDb(() => {
       const database = getDb();
       const existing = database
-        .query("SELECT title, content, tags FROM memories WHERE id = ?")
-        .get(args.id) as { title: string | null; content: string; tags: string } | null;
+        .query("SELECT session_id, title, content, tags FROM memories WHERE id = ?")
+        .get(args.id) as { session_id: string | null; title: string | null; content: string; tags: string } | null;
       if (!existing) {
         return JSON.stringify({ updated: false, id: args.id, error: "not found" });
       }
       const newContent = args.content ?? existing.content;
       const newTags = args.tags !== undefined ? jsonTags(args.tags) : existing.tags;
-      const newTitle = args.title !== undefined ? args.title : existing.title;
+      const newTitle = args.title !== undefined
+        ? uniqueMemoryTitle(database, existing.session_id, args.title, args.id)
+        : existing.title;
       database
         .query(
           "UPDATE memories SET title = ?, content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
@@ -616,6 +643,15 @@ const sessionSetTitle = tool({
   execute: async (args) => {
     return writeDb(() => {
       const database = getDb();
+      const conflict = database
+        .query("SELECT id FROM sessions WHERE title = ? AND id != ?")
+        .get(args.title, args.id) as { id: string } | null;
+      if (conflict) {
+        return JSON.stringify({
+          set: false,
+          error: `Session title "${args.title}" already exists on session ${conflict.id}`,
+        });
+      }
       const result = database
         .query("UPDATE sessions SET title = ?, updated_at = datetime('now') WHERE id = ?")
         .run(args.title, args.id);
