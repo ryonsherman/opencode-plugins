@@ -4,6 +4,24 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 
 ## Plugins
 
+### `git-context.ts`
+
+Git repository state at a glance. Shells out to git commands and returns structured markdown output. No database needed.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `git_context` | Full snapshot: branch, remote status, dirty files, recent commits, stashes |
+| `git_recent` | Last N commits with short hashes and messages |
+| `git_dirty` | Working tree status: staged, unstaged, and untracked files |
+| `git_branches` | List branches with current highlighted and last commit date |
+
+**Features:**
+- No persistent state — pure read-only git queries
+- Defaults to current working directory, accepts optional path override
+- Structured markdown output for easy model consumption
+
 ### `session-memory.ts`
 
 Persistent session memory backed by SQLite with FTS5 full-text search (BM25 ranking, English stemming via `porter` tokenizer). Includes a `sessions` table for tracking session titles and activity.
@@ -61,10 +79,24 @@ Local codebase indexing and search. Scans source files, splits them into line-ba
 
 ## Setup
 
-Copy plugins to the OpenCode config directory:
+Install all plugins:
 
 ```bash
-cp plugins/*.ts ~/.config/opencode/plugins/
+make install
+```
+
+Or install individually:
+
+```bash
+make install-git-context
+make install-session-memory
+make install-codebase-index
+```
+
+To uninstall:
+
+```bash
+make uninstall
 ```
 
 These plugins only load in **plain (non-OMO) mode**. A toggle script is available at `opencode.sh` in the repo.
