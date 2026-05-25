@@ -383,8 +383,9 @@ const codebaseSearch = tool({
   execute: async (args, ctx) => {
     return readDb(() => {
       const database = getDb();
+      const safeQuery = args.query.replace(/-/g, " ");
       const limit = Math.min(Math.max(args.limit ?? 15, 1), 50);
-      const params: unknown[] = [args.query];
+      const params: unknown[] = [safeQuery];
 
       let projectJoin = "";
       let projectWhere = "";
@@ -516,12 +517,37 @@ const codebaseIndexStatus = tool({
   },
 });
 
+const codebaseDeleteIndex = tool({
+  description:
+    "Delete a project's index from the codebase database. Removes all chunks and FTS entries for the specified path.",
+  args: {
+    path: tool.schema
+      .string()
+      .describe("Root path of the project index to delete"),
+  },
+  execute: async (args) => {
+    return writeDb(() => {
+      const database = getDb();
+      const resolved = args.path.replace(/\/$/, "");
+      const project = database
+        .query("SELECT id, name FROM projects WHERE root_path = ?")
+        .get(resolved) as { id: number; name: string } | null;
+      if (!project) {
+        return JSON.stringify({ deleted: false, error: "not found", path: resolved });
+      }
+      database.query("DELETE FROM projects WHERE id = ?").run(project.id);
+      return JSON.stringify({ deleted: true, path: resolved, name: project.name });
+    });
+  },
+});
+
 export const CodebaseIndexPlugin: Plugin = async () => {
   return {
     tool: {
       codebase_index: codebaseIndex,
       codebase_search: codebaseSearch,
       codebase_index_status: codebaseIndexStatus,
+      codebase_delete_index: codebaseDeleteIndex,
     },
   };
 };

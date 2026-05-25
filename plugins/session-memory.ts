@@ -289,7 +289,7 @@ const memoryRetrieve = tool({
       const limit = Math.min(Math.max(args.limit ?? 10, 1), 50);
       const params = [safeQuery, ...scopeParams, ...tagParams, limit];
       const tagSql =
-        tagClauses.length > 0 ? `AND (${tagClauses.join(" OR ")})` : "";
+        tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
         SELECT m.id, m.content, m.tags, m.session_id, m.created_at, rank
@@ -408,7 +408,7 @@ const memoryList = tool({
 
       const params = [...scopeParams, ...tagParams];
       const tagSql =
-        tagClauses.length > 0 ? `AND (${tagClauses.join(" OR ")})` : "";
+        tagClauses.length > 0 ? `AND (${tagClauses.join(" AND ")})` : "";
 
       const sql = `
         SELECT id, content, tags, session_id, created_at, updated_at
@@ -442,6 +442,63 @@ const memoryDelete = tool({
   },
 });
 
+const memoryUpdate = tool({
+  description:
+    "Update an existing memory's content and/or tags by ID. Omit content or tags to keep the current value.",
+  args: {
+    id: tool.schema.number().describe("ID of the memory to update"),
+    content: tool.schema
+      .string()
+      .optional()
+      .describe("New content (omit to keep unchanged)"),
+    tags: tool.schema
+      .array(tool.schema.string())
+      .optional()
+      .describe("New tags (omit to keep unchanged)"),
+  },
+  execute: async (args) => {
+    return writeDb(() => {
+      const database = getDb();
+      const existing = database
+        .query("SELECT content, tags FROM memories WHERE id = ?")
+        .get(args.id) as { content: string; tags: string } | null;
+      if (!existing) {
+        return JSON.stringify({ updated: false, id: args.id, error: "not found" });
+      }
+      const newContent = args.content ?? existing.content;
+      const newTags = args.tags !== undefined ? jsonTags(args.tags) : existing.tags;
+      database
+        .query(
+          "UPDATE memories SET content = ?, tags = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+        .run(newContent, newTags, args.id);
+      return JSON.stringify({ updated: true, id: args.id });
+    });
+  },
+});
+
+const memoryTags = tool({
+  description:
+    "List all unique tags across all memories. Useful for discovering what tags exist to refine searches.",
+  args: {},
+  execute: async () => {
+    return readDb(() => {
+      const database = getDb();
+      const rows = database
+        .query("SELECT DISTINCT tags FROM memories")
+        .all() as { tags: string }[];
+      const tagSet = new Set<string>();
+      for (const r of rows) {
+        try {
+          const parsed = JSON.parse(r.tags);
+          if (Array.isArray(parsed)) parsed.forEach((t: string) => tagSet.add(t));
+        } catch {}
+      }
+      return JSON.stringify({ tags: [...tagSet].sort() });
+    });
+  },
+});
+
 export const SessionMemoryPlugin: Plugin = async () => {
   return {
     tool: {
@@ -451,6 +508,8 @@ export const SessionMemoryPlugin: Plugin = async () => {
       memory_promote_session: memoryPromoteSession,
       memory_list: memoryList,
       memory_delete: memoryDelete,
+      memory_update: memoryUpdate,
+      memory_tags: memoryTags,
     },
   };
 };
