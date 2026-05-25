@@ -98,8 +98,8 @@ User: What sessions have we had?
 
   | ID | Title | Memories | Last Activity |
   |----|-------|----------|---------------|
-  | abc-123 | payment-api-investigation | 5 | 2026-05-25T13:00:00Z |
-  | def-456 | deploy-fix | 2 | 2026-05-24T09:00:00Z |
+  | 1 | payment-api-investigation | 5 | 2026-05-25T13:00:00Z |
+  | 2 | deploy-fix | 2 | 2026-05-24T09:00:00Z |
 
 Model: You have 2 sessions. Most recent was an investigation into the payment API (5 memories).
 ```
