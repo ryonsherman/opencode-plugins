@@ -75,67 +75,76 @@ See `instructions.md` for detailed usage guidance and the session-context patter
 
 ### Memory — store and retrieve
 
-User: `Remember that the payment service uses Stripe API v3`
+```
+User: Remember that the payment service uses Stripe API v3
 
 Model: Got it, I've stored that.
 
 ---
 
-User: `What do you remember about Stripe?`
+User: What do you remember about Stripe?
 
-| ID | Title | Session | Summary | Tags |
-|----|-------|---------|---------|------|
-| 42 | payment-service-uses-stripe-api-v3 | current | The payment service uses Stripe API v3 | stripe, payment, api |
+  | ID | Title | Session | Summary | Tags |
+  |----|-------|---------|---------|------|
+  | 42 | payment-service-uses-stripe-api-v3 | current | The payment service uses Stripe API v3 | stripe, payment, api |
 
 Model: I remember that the payment service uses Stripe API v3.
+```
 
 ### Memory — sessions
 
-User: `What sessions have we had?`
+```
+User: What sessions have we had?
 
-| ID | Title | Memories | Last Activity |
-|----|-------|----------|---------------|
-| abc-123 | payment-api-investigation | 5 | 2026-05-25T13:00:00Z |
-| def-456 | deploy-fix | 2 | 2026-05-24T09:00:00Z |
+  | ID | Title | Memories | Last Activity |
+  |----|-------|----------|---------------|
+  | abc-123 | payment-api-investigation | 5 | 2026-05-25T13:00:00Z |
+  | def-456 | deploy-fix | 2 | 2026-05-24T09:00:00Z |
 
 Model: You have 2 sessions. Most recent was an investigation into the payment API (5 memories).
+```
 
 ### Codebase — index and search
 
-User: `Index my project at /Users/me/my-project`
+```
+User: Index my project at /Users/me/my-project
 
 Model: Indexed. 42 files, 320 chunks.
 
 ---
 
-User: `Show me the payment webhook handler`
+User: Show me the payment webhook handler
 
-Found 3 results:
+  Found 3 results:
 
-## `src/api/webhook.ts` (my-project)
-**Chunk** (lines 45-60, score: 0.82)
-```
-async function handlePaymentWebhook(req: Request, res: Response) {
-  const signature = req.headers['stripe-signature']
-  const event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret)
-}
-```
+  ## `src/api/webhook.ts` (my-project)
+  **Chunk** (lines 45-60, score: 0.82)
+  ```ts
+  async function handlePaymentWebhook(req: Request, res: Response) {
+    const signature = req.headers['stripe-signature']
+    const event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret)
+    // ...
+  }
+  ```
 
----
+  ---
 
-## `src/api/payment.ts` (my-project)
-**Chunk** (lines 120-130, score: 0.45)
-```
-export async function createPaymentIntent(amount: number, currency: string) {
-  const intent = await stripe.paymentIntents.create({ amount, currency })
-  return intent
-}
-```
+  ## `src/api/payment.ts` (my-project)
+  **Chunk** (lines 120-130, score: 0.45)
+  ```ts
+  export async function createPaymentIntent(amount: number, currency: string) {
+    const intent = await stripe.paymentIntents.create({ amount, currency })
+    return intent
+  }
+  ```
 
 Model: Found 3 results across 2 files — the webhook handler in `src/api/webhook.ts` and the payment intent creation in `src/api/payment.ts`.
+```
 
 ### Codebase — check index
 
-User: `Is my project indexed?`
+```
+User: Is my project indexed?
 
 Model: Yes, 42 files, 320 chunks. Last indexed 2026-05-25.
+```
