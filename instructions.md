@@ -71,7 +71,7 @@ If unsure whether to store, **store**.
 
 **Memories columns:** ID, Title, Session (title or "global"), Summary (1-15 word description), Tags
 
-Tags always go in the last column.
+Tags always go in the last column. Timestamps display as `YYYY-MM-DD HH:MM:SS`.
 
 `scope: "all"` sorts session memories first, then globals, both by ID ascending. `scope: "session"` sorts by most recent first.
 
