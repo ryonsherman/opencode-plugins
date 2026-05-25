@@ -206,12 +206,12 @@ function generateTitle(text: string): string {
     .replace(/\n.*$/, "")
     .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim();
-  if (cleaned.length <= 40) {
+  if (cleaned.length <= 25) {
     return cleaned.toLowerCase().replace(/\s+/g, "-");
   }
-  const truncated = cleaned.slice(0, 40);
+  const truncated = cleaned.slice(0, 25);
   const lastSpace = truncated.lastIndexOf(" ");
-  const final = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
+  const final = lastSpace > 10 ? truncated.slice(0, lastSpace) : truncated;
   return final.toLowerCase().replace(/\s+/g, "-");
 }
 
