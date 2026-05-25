@@ -67,17 +67,23 @@ If unsure whether to store, **store**.
 
 When listing memories via `memory_list` or `memory_retrieve`, present as a markdown table: ID, Title, Session (or "global"), Summary, Tags.
 
+`scope: "all"` sorts session memories first, then globals, both by ID ascending. `scope: "session"` sorts by most recent first.
+
 ### Scopes
 
 - **`"session"`** (default): current session only
 - **`"global"`**: cross-session (promoted or `global: true`)
 - **`"all"`**: union of session + global
 
+### Session context
+
+Maintain a `session-context` memory that holds the full, current session context. Update it (via `memory_update`) whenever significant new context is established — this is the canonical record that survives compaction. Before compaction, ensure it's current. After compaction, retrieve it to restore the session.
+
 ### Compaction resilience
 
-- Before compaction: `memory_store` anything not yet persisted
-- After compaction: `memory_retrieve(tags: ["progress"], scope: "all")` + `memory_retrieve(tags: ["preference"], scope: "all")`
-- Treat compaction as a non-event — the memory plugin is the source of truth.
+- **Before compaction**: ensure the `session-context` memory is up to date via `memory_update(id: ..., tags: ["session-context"])`
+- **After compaction**: `memory_retrieve(tags: ["session-context"], scope: "session")` to restore the full session context, then `memory_retrieve(tags: ["preference"], scope: "global")` for cross-session context
+- **Never** treat the compaction summary as a faithful record — the session-context memory is the source of truth
 
 ---
 
