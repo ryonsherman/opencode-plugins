@@ -285,8 +285,9 @@ const memoryRetrieve = tool({
         }
       }
 
+      const safeQuery = args.query.replace(/-/g, " ");
       const limit = Math.min(Math.max(args.limit ?? 10, 1), 50);
-      const params = [args.query, ...scopeParams, ...tagParams, limit];
+      const params = [safeQuery, ...scopeParams, ...tagParams, limit];
       const tagSql =
         tagClauses.length > 0 ? `AND (${tagClauses.join(" OR ")})` : "";
 
