@@ -2,6 +2,19 @@
 
 Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.config/opencode/plugins/`.
 
+| Plugin | Description |
+|--------|-------------|
+| [codebase-index](#codebase-indexts) | Local codebase indexing and full-text search over source files |
+| [error-journal](#error-journalts) | Persistent error log with FTS search, resolution tracking, and pattern matching |
+| [git-context](#git-contextts) | Git repo state: branch, commits, dirty files, remote status, stashes |
+| [hash-encode](#hash-encodets) | Cryptographic hashing (md5/sha1/sha256/sha512), HMAC, and encode/decode (base64/url/hex) |
+| [json-toolkit](#json-toolkitts) | Validate, format, minify, and query JSON strings |
+| [math-calc](#math-calcts) | Evaluate math expressions and convert between units (bytes, distance, weight, volume, etc.) |
+| [project-profile](#project-profilets) | Auto-detect project metadata (languages, framework, scripts) with manual conventions |
+| [regex-tester](#regex-testerts) | Test, replace, and explain regular expressions using native RegExp |
+| [session-memory](#session-memoryts) | Persistent session memory with FTS5 search, tags, scopes, and cross-session recall |
+| [time-calc](#time-calcts) | Calendar-aware date math, time diffs, timezone conversion, and duration unit conversion |
+
 ## Plugins
 
 ### `codebase-index.ts`
