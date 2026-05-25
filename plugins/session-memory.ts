@@ -264,20 +264,6 @@ const memoryStore = tool({
           "UPDATE sessions SET title = COALESCE(title, ?), updated_at = datetime('now') WHERE id = ?"
         ).run(memoryTitle, sessionId);
       }
-      if (sessionId && (!args.tags || !args.tags.includes("session-context"))) {
-        const ctxTag = '%"session-context"%';
-        const existing = database
-          .query("SELECT id, content FROM memories WHERE session_id = ? AND tags LIKE ? LIMIT 1")
-          .get(sessionId, ctxTag) as { id: number; content: string } | null;
-        if (existing) {
-          const preview = args.content.length > 60
-            ? args.content.slice(0, 60) + "..."
-            : args.content;
-          database.query(
-            "UPDATE memories SET content = content || ? || ?, updated_at = datetime('now') WHERE id = ?"
-          ).run("\n- ", `${memoryTitle}: ${preview}`, existing.id);
-        }
-      }
       return JSON.stringify({
         stored: true,
         id: Number(result.lastInsertRowid),
