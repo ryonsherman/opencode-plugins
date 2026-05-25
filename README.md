@@ -119,24 +119,18 @@ User: Show me the payment webhook handler
 
   ## `src/api/webhook.ts` (my-project)
   **Chunk** (lines 45-60, score: 0.82)
-  ```ts
   async function handlePaymentWebhook(req: Request, res: Response) {
     const signature = req.headers['stripe-signature']
     const event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret)
     // ...
   }
-  ```
-
-  ---
 
   ## `src/api/payment.ts` (my-project)
   **Chunk** (lines 120-130, score: 0.45)
-  ```ts
   export async function createPaymentIntent(amount: number, currency: string) {
     const intent = await stripe.paymentIntents.create({ amount, currency })
     return intent
   }
-  ```
 
 Model: Found 3 results across 2 files — the webhook handler in `src/api/webhook.ts` and the payment intent creation in `src/api/payment.ts`.
 ```
