@@ -3,7 +3,7 @@ import { execSync } from "child_process";
 
 function git(cmd: string, cwd: string): string {
   try {
-    return execSync(`git ${cmd}`, { cwd, encoding: "utf-8", timeout: 5000 }).trim();
+    return execSync(`git ${cmd}`, { cwd, encoding: "utf-8", timeout: 5000 }).replace(/\n$/, "");
   } catch {
     return "";
   }
