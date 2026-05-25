@@ -133,7 +133,7 @@ User: Show me the payment webhook handler
   }
 
 Model: Found 3 results across 2 files — the webhook handler in `src/api/webhook.ts` 
-          and the payment intent creation in `src/api/payment.ts`.
+       and the payment intent creation in `src/api/payment.ts`.
 ```
 
 ### Codebase — check index
