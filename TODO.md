@@ -28,7 +28,7 @@ Prioritized by: highest return + easiest to implement → lowest return + hardes
 |---|--------|--------|--------|-------|
 | 12 | **Command history** | Medium | Medium | SQLite + FTS, needs to hook into bash execution somehow. |
 | 13 | **Diff reviewer** | Medium | Medium | Git diff parsing, rule engine for flags, commit message gen. |
-| 14 | **Diff engine** | Medium | Low-Med | String diff algorithm in pure JS. Useful but niche. |
+| 14 | ~~**Diff engine**~~ | Medium | Low-Med | Done — `diff-engine.ts` (Myers diff, line + char level) |
 | 15 | **Environment snapshot** | Medium | Medium | Many shell commands, JSON storage, diff logic. |
 | 16 | **CSV/table processor** | Medium | Medium | CSV parsing + query engine. Non-trivial without deps. |
 

@@ -5,6 +5,7 @@ Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.confi
 | Plugin | Description |
 |--------|-------------|
 | [codebase-index](#codebase-indexts) | Local codebase indexing and full-text search over source files |
+| [diff-engine](#diff-enginets) | Compare text using Myers diff algorithm (line-level and character-level) |
 | [error-journal](#error-journalts) | Persistent error log with FTS search, resolution tracking, and pattern matching |
 | [git-context](#git-contextts) | Git repo state: branch, commits, dirty files, remote status, stashes |
 | [hash-encode](#hash-encodets) | Cryptographic hashing (md5/sha1/sha256/sha512), HMAC, and encode/decode (base64/url/hex) |
@@ -78,6 +79,24 @@ Local codebase indexing and search. Scans source files, splits them into line-ba
 - Path filter narrowing (e.g. `src/api` or `.ts`)
 - Supports multiple projects independently
 - Same backup/recovery mechanism as session-memory
+
+### `diff-engine.ts`
+
+Compare two texts using the Myers diff algorithm — the same algorithm git uses internally. Provides both line-level and character-level comparison.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `diff_lines` | Compare two strings line-by-line, returns unified diff with context |
+| `diff_chars` | Compare two strings character-by-character, best for short strings |
+
+**Features:**
+- Pure JS Myers diff — minimal edit distance, no dependencies
+- Line-level diff with configurable context lines (default: 3)
+- Character-level diff with inline markup (`[-removed-]` / `{+added+}`)
+- Stats summary (additions, deletions, unchanged)
+- No state, no database
 
 ### `error-journal.ts`
 

@@ -34,6 +34,7 @@ endef
 $(foreach name,$(PLUGIN_NAMES),$(eval $(call PLUGIN_RULES,$(name))))
 
 DESC_codebase-index := Local codebase indexing and full-text search over source files
+DESC_diff-engine := Compare text using Myers diff algorithm (line-level and character-level)
 DESC_error-journal := Persistent error log with FTS search, resolution tracking, and pattern matching
 DESC_git-context := Git repo state: branch, commits, dirty files, remote status, stashes
 DESC_hash-encode := Cryptographic hashing (md5/sha1/sha256/sha512), HMAC, and encode/decode (base64/url/hex)

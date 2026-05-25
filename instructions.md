@@ -116,6 +116,25 @@ When you need to understand, find, or reference anything in the codebase, just c
 
 ---
 
+## Diff Engine Plugin
+
+*If `diff-engine.ts` is installed.*
+
+Two tools for deterministic text comparison using the Myers diff algorithm.
+
+### Tools
+
+- **`diff_lines(old_text, new_text, context?)`** — Line-by-line diff with unified output. Context lines default to 3.
+- **`diff_chars(old_text, new_text)`** — Character-level diff with inline markup (`[-removed-]` / `{+added+}`).
+
+### When to use
+
+- Comparing two versions of config files, function outputs, or API responses
+- Verifying what changed between edits
+- Use `diff_lines` for multi-line text; use `diff_chars` for short strings, variable names, or single-line values
+
+---
+
 ## Error Journal Plugin
 
 *If `error-journal.ts` is installed.*
