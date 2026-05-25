@@ -187,7 +187,7 @@ Five tools for auto-detecting project metadata and managing conventions. Backed 
 
 ### Usage
 
-Use `project_profile` at session start to get instant context about the project. Conventions are manually added rules that guide how code should be written — follow them when generating code for that project.
+Use `project_profile` at session start to get instant context about the project. Conventions are manually added rules that guide how code should be written — follow them when generating code for that project. If the project structure has changed significantly (new framework, language, or major restructure), use `project_scan` to refresh the profile.
 
 ---
 
