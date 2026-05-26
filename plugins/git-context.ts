@@ -59,7 +59,7 @@ function getStashes(cwd: string): string[] {
 }
 
 function getBranches(cwd: string): string[] {
-  const output = git("branch --format=%(refname:short)|%(HEAD)|%(committerdate:relative)", cwd);
+  const output = git("branch --format='%(refname:short)|%(HEAD)|%(committerdate:relative)'", cwd);
   if (!output) return [];
   return output.split("\n").map((line) => {
     const [name, head, date] = line.split("|");
