@@ -155,9 +155,11 @@ function getLatestBackup(): string | null {
 }
 
 function tryRestore(): boolean {
-  const backup = getLatestBackup();
-  if (!backup) return false;
+  if ((tryRestore as any)._active) return false;
+  (tryRestore as any)._active = true;
   try {
+    const backup = getLatestBackup();
+    if (!backup) return false;
     if (db) {
       db.close();
       db = null;
@@ -171,6 +173,8 @@ function tryRestore(): boolean {
     return true;
   } catch {
     return false;
+  } finally {
+    (tryRestore as any)._active = false;
   }
 }
 

@@ -73,7 +73,7 @@ function convert(value: number, from: string, to: string): string {
 
 function safeEval(expression: string): string {
   // Reject anything that looks like code injection
-  const forbidden = /[;{}\[\]`'"\$\\]|function|return|var|let|const|import|export|require|process|global|this/i;
+  const forbidden = /[;{}\[\]`'"\$\\]|function|return|var|let|const|import|export|require|process|global|this|constructor|prototype|__proto__/i;
   if (forbidden.test(expression)) {
     return "Error: Expression contains forbidden characters or keywords";
   }

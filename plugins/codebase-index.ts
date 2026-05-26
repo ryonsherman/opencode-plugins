@@ -156,9 +156,11 @@ function getLatestBackup(): string | null {
 }
 
 function tryRestore(): boolean {
-  const backup = getLatestBackup();
-  if (!backup) return false;
+  if ((tryRestore as any)._active) return false;
+  (tryRestore as any)._active = true;
   try {
+    const backup = getLatestBackup();
+    if (!backup) return false;
     if (db) {
       db.close();
       db = null;
@@ -172,6 +174,8 @@ function tryRestore(): boolean {
     return true;
   } catch {
     return false;
+  } finally {
+    (tryRestore as any)._active = false;
   }
 }
 
@@ -288,7 +292,7 @@ function indexProject(rootPath: string): { files: number; chunks: number } {
     );
     insertProject.run(resolvedPath, projectName);
     const projectId = Number(
-      database.query("SELECT last_insert_rowid() as id").get().id
+      (database.query("SELECT last_insert_rowid() as id").get() as { id: number }).id
     );
 
     const insertChunk = database.query(`
@@ -396,15 +400,17 @@ const codebaseSearch = tool({
     }
     return readDb(() => {
       const database = getDb();
-      const safeQuery = args.query.replace(/"/g, '""');
-      const ftsQuery = `"${safeQuery}"`;
+      // Quote each word individually to handle special chars (hyphens) while allowing multi-word AND matching
+      const ftsQuery = args.query
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((w) => `"${w.replace(/"/g, '""')}"`)
+        .join(" ");
       const limit = Math.min(Math.max(args.limit ?? 15, 1), 50);
       const params: unknown[] = [ftsQuery];
 
-      let projectJoin = "";
       let projectWhere = "";
       if (args.path) {
-        projectJoin = "JOIN projects p ON c.project_id = p.id";
         projectWhere = "AND p.root_path = ?";
         params.push(targetPath);
       }
@@ -421,7 +427,7 @@ const codebaseSearch = tool({
         SELECT c.id, c.rel_path, c.start_line, c.end_line, c.content, p.root_path, p.name as project, rank
         FROM code_chunks_fts
         JOIN code_chunks c ON c.id = code_chunks_fts.rowid
-        ${projectJoin}
+        JOIN projects p ON c.project_id = p.id
         WHERE code_chunks_fts MATCH ?
           ${projectWhere}
           ${filterWhere}

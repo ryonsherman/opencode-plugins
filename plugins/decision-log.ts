@@ -280,7 +280,8 @@ export const DecisionLogPlugin: Plugin = async () => {
 
           if (rows.length === 0) return "No decisions found.";
 
-          const total = (database.prepare("SELECT COUNT(*) as count FROM decisions").get() as { count: number }).count;
+          const countSql = sql.replace("SELECT *", "SELECT COUNT(*) as count").replace(/ ORDER BY.*/, "");
+          const total = (database.prepare(countSql).get(...params.slice(0, -1)) as { count: number }).count;
           const header = `Showing ${rows.length} of ${total} total decisions:\n\n`;
           return header + rows.map(formatDecision).join("\n\n---\n\n");
         },
