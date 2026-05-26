@@ -217,9 +217,10 @@ export const CommandHistoryPlugin: Plugin = async () => {
 
           if (rows.length === 0) return "No commands in history.";
 
-          const countSql = sql.replace("SELECT *", "SELECT COUNT(*) as count").replace(/ ORDER BY.*/, "");
-          const total = (database.prepare(countSql).get(...params.slice(0, -1)) as { count: number }).count;
-          const header = `Showing ${rows.length} of ${total} total commands:\n\n`;
+          const countParams = params.slice(0, -1);
+          const countSql = sql.replace(/^SELECT \*/, "SELECT COUNT(*) as count").replace(/ ORDER BY[^)]*$/, "");
+          const total = (database.prepare(countSql).get(...countParams) as { count: number }).count;
+          const header = `Showing ${rows.length} of ${total} matching commands:\n\n`;
           return header + rows.map(formatCommand).join("\n\n---\n\n");
         },
       }),

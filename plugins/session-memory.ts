@@ -32,7 +32,8 @@ function getDb(): Database {
       if (!tryRestore()) throw e;
     }
   }
-  return db!;
+  if (!db) throw new Error("Database initialization failed");
+  return db;
 }
 
 function initSchema(database: Database): void {

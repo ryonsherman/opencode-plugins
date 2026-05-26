@@ -385,8 +385,8 @@ const codebaseSearch = tool({
       .describe("Maximum results to return (1-50)"),
   },
   execute: async (args, ctx) => {
-    const targetPath = args.path ? args.path.replace(/\/$/, "") : (ctx.directory?.replace(/\/$/, "") || "");
-    if (targetPath) {
+    const targetPath = (args.path || ctx.directory || "").replace(/\/$/, "");
+    if (targetPath && targetPath.length > 0) {
       const isIndexed = readDb(() => {
         const database = getDb();
         const row = database
