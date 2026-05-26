@@ -1,9 +1,10 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 function git(cmd: string, cwd: string): string {
   try {
-    return execSync(`git ${cmd}`, { cwd, encoding: "utf-8", timeout: 5000 }).replace(/\n$/, "");
+    const args = cmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+    return execFileSync("git", args.map(a => a.replace(/^"|"$/g, "")), { cwd, encoding: "utf-8", timeout: 5000 }).replace(/\n$/, "");
   } catch {
     return "";
   }
@@ -59,7 +60,7 @@ function getStashes(cwd: string): string[] {
 }
 
 function getBranches(cwd: string): string[] {
-  const output = git("branch --format='%(refname:short)|%(HEAD)|%(committerdate:relative)'", cwd);
+  const output = git("branch --format=%(refname:short)|%(HEAD)|%(committerdate:relative)", cwd);
   if (!output) return [];
   return output.split("\n").map((line) => {
     const [name, head, date] = line.split("|");
