@@ -4,42 +4,49 @@ import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, copyFileSyn
 import { join, basename, resolve } from "path";
 import { homedir } from "os";
 
-const DB_DIR = join(homedir(), ".opencode-memory");
+const DB_DIR = join(homedir(), ".opencode-plugins", "project-profile");
 const DB_PATH = join(DB_DIR, "project-profile.db");
 const BACKUP_DIR = join(DB_DIR, "backups");
 const MAX_BACKUPS = 5;
 
 let db: Database | null = null;
+let lastBackupTime = 0;
 
 function ensureDir(dir: string) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 function backup() {
+  const now = Date.now();
+  if (now - lastBackupTime < 300000) return;
   if (!existsSync(DB_PATH)) return;
   ensureDir(BACKUP_DIR);
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  const dest = join(BACKUP_DIR, `project-profile-${ts}.db`);
+  const dest = join(BACKUP_DIR, `${ts}.db`);
   copyFileSync(DB_PATH, dest);
   const backups = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("project-profile-"))
+    .filter((f) => f.endsWith(".db"))
     .sort()
     .reverse();
   for (const old of backups.slice(MAX_BACKUPS)) {
     rmSync(join(BACKUP_DIR, old));
   }
+  lastBackupTime = now;
 }
 
 function tryRestore(): Database | null {
   if (!existsSync(BACKUP_DIR)) return null;
   const backups = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("project-profile-"))
+    .filter((f) => f.endsWith(".db"))
     .sort();
   if (backups.length === 0) return null;
   const latest = backups[backups.length - 1];
   copyFileSync(join(BACKUP_DIR, latest), DB_PATH);
   const restored = new Database(DB_PATH);
   restored.exec("PRAGMA journal_mode=WAL");
+  restored.exec("PRAGMA synchronous=NORMAL");
+  restored.exec("PRAGMA cache_size=-8000");
+  restored.exec("PRAGMA temp_store=MEMORY");
   initSchema(restored);
   return restored;
 }
@@ -59,6 +66,9 @@ function getDb(): Database {
     try {
       db = new Database(DB_PATH, { create: true });
       db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA synchronous=NORMAL");
+      db.exec("PRAGMA cache_size=-8000");
+      db.exec("PRAGMA temp_store=MEMORY");
       initSchema(db);
     } catch (e) {
       db = tryRestore();

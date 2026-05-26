@@ -10,12 +10,13 @@ import {
 import { homedir } from "os";
 import { join } from "path";
 
-const DB_DIR = join(homedir(), ".opencode-memory");
+const DB_DIR = join(homedir(), ".opencode-plugins", "session-memory");
 const DB_PATH = join(DB_DIR, "memories.db");
 const BACKUP_DIR = join(DB_DIR, "backups");
 const MAX_BACKUPS = 5;
 
 let db: Database | null = null;
+let lastBackupTime = 0;
 
 function getDb(): Database {
   if (!db) {
@@ -25,6 +26,9 @@ function getDb(): Database {
     try {
       db = new Database(DB_PATH);
       db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA synchronous=NORMAL");
+      db.exec("PRAGMA cache_size=-8000");
+      db.exec("PRAGMA temp_store=MEMORY");
       db.exec("PRAGMA foreign_keys=ON");
       initSchema(db);
     } catch (e) {
@@ -127,6 +131,8 @@ function isCorruption(err: unknown): boolean {
 }
 
 function backupDb(): void {
+  const now = Date.now();
+  if (now - lastBackupTime < 300000) return;
   const database = db;
   if (!database) return;
   try {
@@ -135,21 +141,22 @@ function backupDb(): void {
       mkdirSync(BACKUP_DIR, { recursive: true });
     }
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    copyFileSync(DB_PATH, join(BACKUP_DIR, `memories.db.${ts}`));
+    copyFileSync(DB_PATH, join(BACKUP_DIR, `${ts}.db`));
     const files = readdirSync(BACKUP_DIR)
-      .filter((f) => f.startsWith("memories.db."))
+      .filter((f) => f.endsWith(".db"))
       .sort()
       .reverse();
     for (const f of files.slice(MAX_BACKUPS)) {
       rmSync(join(BACKUP_DIR, f), { force: true });
     }
+    lastBackupTime = now;
   } catch {}
 }
 
 function getLatestBackup(): string | null {
   if (!existsSync(BACKUP_DIR)) return null;
   const files = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("memories.db."))
+    .filter((f) => f.endsWith(".db"))
     .sort()
     .reverse();
   return files.length > 0 ? join(BACKUP_DIR, files[0]) : null;
@@ -650,16 +657,9 @@ const memoryTags = tool({
     return readDb(() => {
       const database = getDb();
       const rows = database
-        .query("SELECT DISTINCT tags FROM memories")
-        .all() as { tags: string }[];
-      const tagSet = new Set<string>();
-      for (const r of rows) {
-        try {
-          const parsed = JSON.parse(r.tags);
-          if (Array.isArray(parsed)) parsed.forEach((t: string) => tagSet.add(t));
-        } catch {}
-      }
-      return JSON.stringify({ tags: [...tagSet].sort() });
+        .query("SELECT DISTINCT j.value AS tag FROM memories, json_each(memories.tags) AS j ORDER BY j.value")
+        .all() as { tag: string }[];
+      return JSON.stringify({ tags: rows.map((r) => r.tag) });
     });
   },
 });

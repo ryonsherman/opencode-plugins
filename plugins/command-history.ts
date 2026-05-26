@@ -10,12 +10,13 @@ import {
 import { homedir } from "os";
 import { join } from "path";
 
-const DB_DIR = join(homedir(), ".opencode-memory");
+const DB_DIR = join(homedir(), ".opencode-plugins", "command-history");
 const DB_PATH = join(DB_DIR, "command-history.db");
 const BACKUP_DIR = join(DB_DIR, "backups");
 const MAX_BACKUPS = 5;
 
 let db: Database | null = null;
+let lastBackupTime = 0;
 
 function getDb(): Database {
   if (!db) {
@@ -23,6 +24,9 @@ function getDb(): Database {
     try {
       db = new Database(DB_PATH);
       db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA synchronous=NORMAL");
+      db.exec("PRAGMA cache_size=-8000");
+      db.exec("PRAGMA temp_store=MEMORY");
       initSchema(db);
     } catch (e) {
       db = tryRestore();
@@ -93,28 +97,30 @@ function initSchema(database: Database): void {
 }
 
 function backup(): void {
+  const now = Date.now();
+  if (now - lastBackupTime < 300000) return;
   if (!existsSync(DB_PATH)) return;
   if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
   const ts = new Date().toISOString().replace(/[:.]/g, "-");
-  copyFileSync(DB_PATH, join(BACKUP_DIR, `command-history-${ts}.db`));
-  const backups = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("command-history-"))
-    .sort();
+  copyFileSync(DB_PATH, join(BACKUP_DIR, `${ts}.db`));
+  const backups = readdirSync(BACKUP_DIR).filter((f) => f.endsWith(".db")).sort();
   while (backups.length > MAX_BACKUPS) {
     rmSync(join(BACKUP_DIR, backups.shift()!));
   }
+  lastBackupTime = now;
 }
 
 function tryRestore(): Database | null {
   if (!existsSync(BACKUP_DIR)) return null;
-  const backups = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("command-history-"))
-    .sort();
+  const backups = readdirSync(BACKUP_DIR).filter((f) => f.endsWith(".db")).sort();
   if (backups.length === 0) return null;
   const latest = backups[backups.length - 1];
   copyFileSync(join(BACKUP_DIR, latest), DB_PATH);
   const restored = new Database(DB_PATH);
   restored.exec("PRAGMA journal_mode=WAL");
+  restored.exec("PRAGMA synchronous=NORMAL");
+  restored.exec("PRAGMA cache_size=-8000");
+  restored.exec("PRAGMA temp_store=MEMORY");
   initSchema(restored);
   return restored;
 }
@@ -248,14 +254,12 @@ export const CommandHistoryPlugin: Plugin = async () => {
             }
 
             const rows = database.prepare(
-              `SELECT * FROM commands ${where} ORDER BY created_at DESC LIMIT ?`
-            ).all(...params, limit) as CommandRow[];
+              `SELECT *, COUNT(*) OVER() as _total FROM commands ${where} ORDER BY created_at DESC LIMIT ?`
+            ).all(...params, limit) as (CommandRow & { _total: number })[];
 
             if (rows.length === 0) return "No commands in history.";
 
-            const total = (database.prepare(
-              `SELECT COUNT(*) as count FROM commands ${where}`
-            ).get(...params) as { count: number }).count;
+            const total = rows[0]._total;
             const header = `Showing ${rows.length} of ${total} matching commands:\n\n`;
             return header + rows.map(formatCommand).join("\n\n---\n\n");
           });

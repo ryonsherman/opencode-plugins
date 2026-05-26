@@ -12,7 +12,7 @@ import {
 import { homedir } from "os";
 import { join, relative, sep, extname } from "path";
 
-const DB_DIR = join(homedir(), ".opencode-memory");
+const DB_DIR = join(homedir(), ".opencode-plugins", "codebase-index");
 const DB_PATH = join(DB_DIR, "codebase.db");
 const BACKUP_DIR = join(DB_DIR, "backups");
 const MAX_BACKUPS = 5;
@@ -50,12 +50,16 @@ const CHUNK_OVERLAP = 10;
 const MAX_FILE_SIZE = 512_000;
 
 let db: Database | null = null;
+let lastBackupTime = 0;
 
 function getDb(): Database {
   if (!db) {
     if (!existsSync(DB_DIR)) mkdirSync(DB_DIR, { recursive: true });
     db = new Database(DB_PATH);
     db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA synchronous=NORMAL");
+      db.exec("PRAGMA cache_size=-8000");
+      db.exec("PRAGMA temp_store=MEMORY");
     db.exec("PRAGMA foreign_keys=ON");
     initSchema(db);
   }
@@ -129,27 +133,30 @@ function initSchema(database: Database): void {
 // --- Backup & recovery ---
 
 function backupDb(): void {
+  const now = Date.now();
+  if (now - lastBackupTime < 300000) return;
   const database = db;
   if (!database) return;
   try {
     database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
     if (!existsSync(BACKUP_DIR)) mkdirSync(BACKUP_DIR, { recursive: true });
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
-    copyFileSync(DB_PATH, join(BACKUP_DIR, `codebase.db.${ts}`));
+    copyFileSync(DB_PATH, join(BACKUP_DIR, `${ts}.db`));
     const files = readdirSync(BACKUP_DIR)
-      .filter((f) => f.startsWith("codebase.db."))
+      .filter((f) => f.endsWith(".db"))
       .sort()
       .reverse();
     for (const f of files.slice(MAX_BACKUPS)) {
       rmSync(join(BACKUP_DIR, f), { force: true });
     }
+    lastBackupTime = now;
   } catch {}
 }
 
 function getLatestBackup(): string | null {
   if (!existsSync(BACKUP_DIR)) return null;
   const files = readdirSync(BACKUP_DIR)
-    .filter((f) => f.startsWith("codebase.db."))
+    .filter((f) => f.endsWith(".db"))
     .sort()
     .reverse();
   return files.length > 0 ? join(BACKUP_DIR, files[0]) : null;
@@ -287,6 +294,11 @@ function indexProject(rootPath: string): { files: number; chunks: number } {
     deleteStmt.run(resolvedPath);
     deleteProject.run(resolvedPath);
 
+    // Disable FTS triggers during bulk insert for performance
+    database.exec("DROP TRIGGER IF EXISTS chunks_ai");
+    database.exec("DROP TRIGGER IF EXISTS chunks_ad");
+    database.exec("DROP TRIGGER IF EXISTS chunks_au");
+
     const insertProject = database.query(
       "INSERT INTO projects (root_path, name) VALUES (?, ?)"
     );
@@ -328,6 +340,26 @@ function indexProject(rootPath: string): { files: number; chunks: number } {
     `).run(fileCount, chunkCount, projectId);
 
     database.exec("COMMIT");
+
+    // Rebuild FTS index and recreate triggers
+    database.exec("INSERT INTO code_chunks_fts(code_chunks_fts) VALUES('rebuild')");
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(rowid, content) VALUES (new.id, new.content);
+      END
+    `);
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(code_chunks_fts, rowid, content) VALUES ('delete', old.id, old.content);
+      END
+    `);
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(code_chunks_fts, rowid, content) VALUES ('delete', old.id, old.content);
+        INSERT INTO code_chunks_fts(rowid, content) VALUES (new.id, new.content);
+      END
+    `);
+
     return { files: fileCount, chunks: chunkCount };
   } catch (err) {
     database.exec("ROLLBACK");
@@ -395,7 +427,7 @@ const codebaseSearch = tool({
         return row !== null;
       });
       if (!isIndexed && existsSync(targetPath)) {
-        writeDb(() => indexProject(targetPath));
+        return `Project at "${targetPath}" is not indexed. Run codebase_index first.`;
       }
     }
     return readDb(() => {

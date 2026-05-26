@@ -2,29 +2,29 @@ import { type Plugin, tool } from "@opencode-ai/plugin";
 
 type Edit = { type: "equal" | "insert" | "delete"; value: string };
 
-function shortestEdit(a: string[], b: string[]): number[][] {
+function shortestEdit(a: string[], b: string[]): Map<number, number>[] {
   const n = a.length;
   const m = b.length;
   const max = n + m;
-  const v = new Array(2 * max + 1).fill(0);
-  v[1 + max] = 0; // offset index by max
-  const trace: number[][] = [];
+  const v = new Map<number, number>();
+  v.set(1, 0);
+  const trace: Map<number, number>[] = [];
 
   for (let d = 0; d <= max; d++) {
-    trace.push(v.slice());
+    trace.push(new Map(v));
     for (let k = -d; k <= d; k += 2) {
       let x: number;
-      if (k === -d || (k !== d && v[k - 1 + max] < v[k + 1 + max])) {
-        x = v[k + 1 + max]; // move down
+      if (k === -d || (k !== d && (v.get(k - 1) || 0) < (v.get(k + 1) || 0))) {
+        x = v.get(k + 1) || 0;
       } else {
-        x = v[k - 1 + max] + 1; // move right
+        x = (v.get(k - 1) || 0) + 1;
       }
       let y = x - k;
       while (x < n && y < m && a[x] === b[y]) {
         x++;
         y++;
       }
-      v[k + max] = x;
+      v.set(k, x);
       if (x === n && y === m) {
         return trace;
       }
@@ -33,10 +33,9 @@ function shortestEdit(a: string[], b: string[]): number[][] {
   return trace;
 }
 
-function backtrack(trace: number[][], a: string[], b: string[]): Edit[] {
+function backtrack(trace: Map<number, number>[], a: string[], b: string[]): Edit[] {
   let x = a.length;
   let y = b.length;
-  const max = a.length + b.length;
   const edits: Edit[] = [];
 
   for (let d = trace.length - 1; d >= 0; d--) {
@@ -44,16 +43,15 @@ function backtrack(trace: number[][], a: string[], b: string[]): Edit[] {
     const k = x - y;
 
     let prevK: number;
-    if (k === -d || (k !== d && v[k - 1 + max] < v[k + 1 + max])) {
+    if (k === -d || (k !== d && (v.get(k - 1) || 0) < (v.get(k + 1) || 0))) {
       prevK = k + 1;
     } else {
       prevK = k - 1;
     }
 
-    const prevX = v[prevK + max];
+    const prevX = v.get(prevK) || 0;
     const prevY = prevX - prevK;
 
-    // Diagonal moves (equals)
     while (x > prevX && y > prevY) {
       x--;
       y--;
@@ -62,11 +60,9 @@ function backtrack(trace: number[][], a: string[], b: string[]): Edit[] {
 
     if (d > 0) {
       if (x === prevX) {
-        // moved down: insert
         y--;
         edits.push({ type: "insert", value: b[y] });
       } else {
-        // moved right: delete
         x--;
         edits.push({ type: "delete", value: a[x] });
       }
