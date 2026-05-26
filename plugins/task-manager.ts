@@ -84,6 +84,30 @@ function tryRestore(): Database | null {
   return restored;
 }
 
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
+}
+
 function isGitRepo(dir: string): boolean {
   return existsSync(join(dir, ".git"));
 }
@@ -237,19 +261,20 @@ export const TaskManagerPlugin: Plugin = async () => {
           blocked_by: tool.schema.number().optional().describe("ID of a task that blocks this one"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
-          const priority = args.priority || "medium";
-          const tags = JSON.stringify(args.tags || []);
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
+            const priority = args.priority || "medium";
+            const tags = JSON.stringify(args.tags || []);
 
-          const result = database.prepare(
-            "INSERT INTO tasks (title, priority, tags, blocked_by, project_path) VALUES (?, ?, ?, ?, ?)"
-          ).run(args.title, priority, tags, args.blocked_by || null, projectPath);
+            const result = database.prepare(
+              "INSERT INTO tasks (title, priority, tags, blocked_by, project_path) VALUES (?, ?, ?, ?, ?)"
+            ).run(args.title, priority, tags, args.blocked_by || null, projectPath);
 
-          backup();
-          writeTodoFile(database, projectPath);
+            writeTodoFile(database, projectPath);
 
-          return `Added task #${result.lastInsertRowid}: "${args.title}" [${priority}]`;
+            return `Added task #${result.lastInsertRowid}: "${args.title}" [${priority}]`;
+          }, true);
         },
       }),
 
@@ -265,32 +290,33 @@ export const TaskManagerPlugin: Plugin = async () => {
           blocked_by: tool.schema.number().optional().describe("Set or change blocking task (use 0 to clear)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const existing = database.prepare("SELECT * FROM tasks WHERE id = ?").get(args.id) as TaskRow | null;
-          if (!existing) return `Task #${args.id} not found.`;
+          return withRetry(() => {
+            const database = getDb();
+            const existing = database.prepare("SELECT * FROM tasks WHERE id = ?").get(args.id) as TaskRow | null;
+            if (!existing) return `Task #${args.id} not found.`;
 
-          const updates: string[] = [];
-          const params: any[] = [];
+            const updates: string[] = [];
+            const params: any[] = [];
 
-          if (args.status !== undefined) { updates.push("status = ?"); params.push(args.status); }
-          if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
-          if (args.priority !== undefined) { updates.push("priority = ?"); params.push(args.priority); }
-          if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
-          if (args.blocked_by !== undefined) { updates.push("blocked_by = ?"); params.push(args.blocked_by === 0 ? null : args.blocked_by); }
+            if (args.status !== undefined) { updates.push("status = ?"); params.push(args.status); }
+            if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
+            if (args.priority !== undefined) { updates.push("priority = ?"); params.push(args.priority); }
+            if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
+            if (args.blocked_by !== undefined) { updates.push("blocked_by = ?"); params.push(args.blocked_by === 0 ? null : args.blocked_by); }
 
-          if (updates.length === 0) return "No fields to update.";
+            if (updates.length === 0) return "No fields to update.";
 
-          updates.push("updated_at = datetime('now')");
-          params.push(args.id);
+            updates.push("updated_at = datetime('now')");
+            params.push(args.id);
 
-          database.prepare(`UPDATE tasks SET ${updates.join(", ")} WHERE id = ?`).run(...params);
-          backup();
+            database.prepare(`UPDATE tasks SET ${updates.join(", ")} WHERE id = ?`).run(...params);
 
-          const projectPath = existing.project_path || ctx.directory || process.cwd();
-          writeTodoFile(database, projectPath);
+            const projectPath = existing.project_path || ctx.directory || process.cwd();
+            writeTodoFile(database, projectPath);
 
-          const updated = database.prepare("SELECT * FROM tasks WHERE id = ?").get(args.id) as TaskRow;
-          return `Updated task #${args.id}:\n${formatTask(updated)}`;
+            const updated = database.prepare("SELECT * FROM tasks WHERE id = ?").get(args.id) as TaskRow;
+            return `Updated task #${args.id}:\n${formatTask(updated)}`;
+          }, true);
         },
       }),
 
@@ -304,36 +330,38 @@ export const TaskManagerPlugin: Plugin = async () => {
           all_projects: tool.schema.boolean().optional().describe("Show tasks from all projects (default: current project only)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
-          let sql = "SELECT * FROM tasks WHERE 1=1";
-          const params: any[] = [];
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
+            let sql = "SELECT * FROM tasks WHERE 1=1";
+            const params: any[] = [];
 
-          if (!args.all_projects) {
-            sql += " AND project_path = ?";
-            params.push(projectPath);
-          }
-          if (args.status) {
-            sql += " AND status = ?";
-            params.push(args.status);
-          }
-          if (args.priority) {
-            sql += " AND priority = ?";
-            params.push(args.priority);
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              sql += " AND tags LIKE ?";
-              params.push(`%"${tag}"%`);
+            if (!args.all_projects) {
+              sql += " AND project_path = ?";
+              params.push(projectPath);
             }
-          }
+            if (args.status) {
+              sql += " AND status = ?";
+              params.push(args.status);
+            }
+            if (args.priority) {
+              sql += " AND priority = ?";
+              params.push(args.priority);
+            }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                sql += " AND tags LIKE ?";
+                params.push(`%"${tag}"%`);
+              }
+            }
 
-          sql += " ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, created_at";
+            sql += " ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END, created_at";
 
-          const rows = database.prepare(sql).all(...params) as TaskRow[];
+            const rows = database.prepare(sql).all(...params) as TaskRow[];
 
-          if (rows.length === 0) return "No tasks found.";
-          return rows.map(formatTask).join("\n\n---\n\n");
+            if (rows.length === 0) return "No tasks found.";
+            return rows.map(formatTask).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -344,70 +372,71 @@ export const TaskManagerPlugin: Plugin = async () => {
           path: tool.schema.string().optional().describe("Path to TODO.md (defaults to project root)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
-          const filePath = args.path || join(projectPath, "TODO.md");
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
+            const filePath = args.path || join(projectPath, "TODO.md");
 
-          if (!existsSync(filePath)) return "No TODO.md found to sync.";
+            if (!existsSync(filePath)) return "No TODO.md found to sync.";
 
-          const content = readFileSync(filePath, "utf-8");
+            const content = readFileSync(filePath, "utf-8");
 
-          // Check if file has actually been modified
-          const lastRender = database.prepare("SELECT value FROM meta WHERE key = ?").get(`last_render:${projectPath}`) as { value: string } | null;
-          const currentHash = new Bun.CryptoHasher("sha256").update(content).digest("hex");
-          if (lastRender && lastRender.value === currentHash) {
-            return "TODO.md has not been modified since last render. Nothing to sync.";
-          }
+            // Check if file has actually been modified
+            const lastRender = database.prepare("SELECT value FROM meta WHERE key = ?").get(`last_render:${projectPath}`) as { value: string } | null;
+            const currentHash = new Bun.CryptoHasher("sha256").update(content).digest("hex");
+            if (lastRender && lastRender.value === currentHash) {
+              return "TODO.md has not been modified since last render. Nothing to sync.";
+            }
 
-          const parsed = parseTodoMd(content);
-          let added = 0;
-          let updated = 0;
-          let removed = 0;
+            const parsed = parseTodoMd(content);
+            let added = 0;
+            let updated = 0;
+            let removed = 0;
 
-          // Collect IDs present in the file
-          const fileIds = new Set(parsed.filter((p) => p.id !== null).map((p) => p.id));
+            // Collect IDs present in the file
+            const fileIds = new Set(parsed.filter((p) => p.id !== null).map((p) => p.id));
 
-          for (const item of parsed) {
-            if (item.id) {
-              // Existing task — check for status change
-              const existing = database.prepare("SELECT * FROM tasks WHERE id = ?").get(item.id) as TaskRow | null;
-              if (existing) {
-                const newStatus = item.completed ? "completed" : (existing.status === "completed" ? "pending" : existing.status);
-                if (newStatus !== existing.status || existing.title !== item.title) {
-                  database.prepare("UPDATE tasks SET status = ?, title = ?, updated_at = datetime('now') WHERE id = ?")
-                    .run(newStatus, item.title, item.id);
-                  updated++;
+            for (const item of parsed) {
+              if (item.id) {
+                // Existing task — check for status change
+                const existing = database.prepare("SELECT * FROM tasks WHERE id = ?").get(item.id) as TaskRow | null;
+                if (existing) {
+                  const newStatus = item.completed ? "completed" : (existing.status === "completed" ? "pending" : existing.status);
+                  if (newStatus !== existing.status || existing.title !== item.title) {
+                    database.prepare("UPDATE tasks SET status = ?, title = ?, updated_at = datetime('now') WHERE id = ?")
+                      .run(newStatus, item.title, item.id);
+                    updated++;
+                  }
                 }
+              } else {
+                // New task (no id) — insert
+                const tags = JSON.stringify(item.tags);
+                database.prepare(
+                  "INSERT INTO tasks (title, status, priority, tags, blocked_by, project_path) VALUES (?, ?, ?, ?, ?, ?)"
+                ).run(item.title, item.completed ? "completed" : "pending", "medium", tags, item.blocked_by, projectPath);
+                added++;
               }
-            } else {
-              // New task (no id) — insert
-              const tags = JSON.stringify(item.tags);
-              database.prepare(
-                "INSERT INTO tasks (title, status, priority, tags, blocked_by, project_path) VALUES (?, ?, ?, ?, ?, ?)"
-              ).run(item.title, item.completed ? "completed" : "pending", "medium", tags, item.blocked_by, projectPath);
-              added++;
             }
-          }
 
-          // Detect removed tasks — DB tasks not in file get cancelled
-          const activeTasks = database.prepare(
-            "SELECT id FROM tasks WHERE project_path = ? AND status NOT IN ('cancelled', 'completed')"
-          ).all(projectPath) as { id: number }[];
-          for (const task of activeTasks) {
-            if (!fileIds.has(task.id)) {
-              database.prepare("UPDATE tasks SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?").run(task.id);
-              removed++;
+            // Detect removed tasks — DB tasks not in file get cancelled
+            const activeTasks = database.prepare(
+              "SELECT id FROM tasks WHERE project_path = ? AND status NOT IN ('cancelled', 'completed')"
+            ).all(projectPath) as { id: number }[];
+            for (const task of activeTasks) {
+              if (!fileIds.has(task.id)) {
+                database.prepare("UPDATE tasks SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?").run(task.id);
+                removed++;
+              }
             }
-          }
 
-          backup();
-          writeTodoFile(database, projectPath);
+            writeTodoFile(database, projectPath);
 
-          const parts = [];
-          if (added) parts.push(`${added} task(s) added`);
-          if (updated) parts.push(`${updated} task(s) updated`);
-          if (removed) parts.push(`${removed} task(s) removed`);
-          return parts.length > 0 ? `Synced TODO.md: ${parts.join(", ")}.` : "TODO.md synced, no changes detected.";
+            const parts = [];
+            if (added) parts.push(`${added} task(s) added`);
+            if (updated) parts.push(`${updated} task(s) updated`);
+            if (removed) parts.push(`${removed} task(s) removed`);
+            return parts.length > 0 ? `Synced TODO.md: ${parts.join(", ")}.` : "TODO.md synced, no changes detected.";
+          }, true);
         },
       }),
     },

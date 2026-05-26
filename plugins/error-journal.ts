@@ -123,6 +123,30 @@ function tryRestore(): Database | null {
   return restored;
 }
 
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
+}
+
 interface ErrorRow {
   id: number;
   error_text: string;
@@ -160,19 +184,20 @@ export const ErrorJournalPlugin: Plugin = async () => {
           project: tool.schema.string().optional().describe("Project path or name"),
         },
         async execute(args) {
-          const database = getDb();
-          const tagsJson = JSON.stringify(args.tags || []);
-          const stmt = database.prepare(
-            "INSERT INTO errors (error_text, context, tags, project) VALUES (?, ?, ?, ?)"
-          );
-          const result = stmt.run(
-            args.error_text,
-            args.context || null,
-            tagsJson,
-            args.project || null
-          );
-          backup();
-          return `Logged error #${result.lastInsertRowid}`;
+          return withRetry(() => {
+            const database = getDb();
+            const tagsJson = JSON.stringify(args.tags || []);
+            const stmt = database.prepare(
+              "INSERT INTO errors (error_text, context, tags, project) VALUES (?, ?, ?, ?)"
+            );
+            const result = stmt.run(
+              args.error_text,
+              args.context || null,
+              tagsJson,
+              args.project || null
+            );
+            return `Logged error #${result.lastInsertRowid}`;
+          }, true);
         },
       }),
 
@@ -184,16 +209,17 @@ export const ErrorJournalPlugin: Plugin = async () => {
           resolution: tool.schema.string().describe("How the error was fixed"),
         },
         async execute(args) {
-          const database = getDb();
-          const row = database
-            .query("SELECT id FROM errors WHERE id = ?")
-            .get(args.id) as { id: number } | null;
-          if (!row) return `Error #${args.id} not found`;
-          database
-            .prepare("UPDATE errors SET resolution = ?, resolved_at = datetime('now') WHERE id = ?")
-            .run(args.resolution, args.id);
-          backup();
-          return `Resolved error #${args.id}`;
+          return withRetry(() => {
+            const database = getDb();
+            const row = database
+              .query("SELECT id FROM errors WHERE id = ?")
+              .get(args.id) as { id: number } | null;
+            if (!row) return `Error #${args.id} not found`;
+            database
+              .prepare("UPDATE errors SET resolution = ?, resolved_at = datetime('now') WHERE id = ?")
+              .run(args.resolution, args.id);
+            return `Resolved error #${args.id}`;
+          }, true);
         },
       }),
 
@@ -205,19 +231,21 @@ export const ErrorJournalPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default: 10)"),
         },
         async execute(args) {
-          const database = getDb();
-          const limit = args.limit || 10;
-          const rows = database
-            .query(
-              `SELECT e.* FROM errors e
-               JOIN errors_fts f ON f.rowid = e.id
-               WHERE errors_fts MATCH ?
-               ORDER BY rank
-               LIMIT ?`
-            )
-            .all(args.query, limit) as ErrorRow[];
-          if (rows.length === 0) return "No matching errors found.";
-          return rows.map(formatError).join("\n---\n\n");
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit || 10;
+            const rows = database
+              .query(
+                `SELECT e.* FROM errors e
+                 JOIN errors_fts f ON f.rowid = e.id
+                 WHERE errors_fts MATCH ?
+                 ORDER BY rank
+                 LIMIT ?`
+              )
+              .all(args.query, limit) as ErrorRow[];
+            if (rows.length === 0) return "No matching errors found.";
+            return rows.map(formatError).join("\n---\n\n");
+          });
         },
       }),
 
@@ -231,36 +259,37 @@ export const ErrorJournalPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default: 20)"),
         },
         async execute(args) {
-          const database = getDb();
-          const conditions: string[] = [];
-          const params: any[] = [];
+          return withRetry(() => {
+            const database = getDb();
+            const conditions: string[] = [];
+            const params: any[] = [];
 
-          if (args.project) {
-            conditions.push("project = ?");
-            params.push(args.project);
-          }
-          if (args.resolved === true) {
-            conditions.push("resolution IS NOT NULL");
-          } else if (args.resolved === false) {
-            conditions.push("resolution IS NULL");
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              conditions.push("tags LIKE ?");
-              params.push(`%${JSON.stringify(tag).slice(1, -1)}%`);
+            if (args.project) {
+              conditions.push("project = ?");
+              params.push(args.project);
             }
-          }
+            if (args.resolved === true) {
+              conditions.push("resolution IS NOT NULL");
+            } else if (args.resolved === false) {
+              conditions.push("resolution IS NULL");
+            }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                conditions.push("tags LIKE ?");
+                params.push(`%${JSON.stringify(tag).slice(1, -1)}%`);
+              }
+            }
 
-          const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-          const limit = args.limit || 20;
-          params.push(limit);
+            const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+            const limit = args.limit || 20;
 
-          const rows = database
-            .query(`SELECT * FROM errors ${where} ORDER BY created_at DESC LIMIT ?`)
-            .all(...params) as ErrorRow[];
+            const rows = database
+              .query(`SELECT * FROM errors ${where} ORDER BY created_at DESC LIMIT ?`)
+              .all(...params, limit) as ErrorRow[];
 
-          if (rows.length === 0) return "No errors found.";
-          return rows.map(formatError).join("\n---\n\n");
+            if (rows.length === 0) return "No errors found.";
+            return rows.map(formatError).join("\n---\n\n");
+          });
         },
       }),
 
@@ -270,14 +299,15 @@ export const ErrorJournalPlugin: Plugin = async () => {
           id: tool.schema.number().describe("Error ID to delete"),
         },
         async execute(args) {
-          const database = getDb();
-          const row = database
-            .query("SELECT id FROM errors WHERE id = ?")
-            .get(args.id) as { id: number } | null;
-          if (!row) return `Error #${args.id} not found`;
-          database.prepare("DELETE FROM errors WHERE id = ?").run(args.id);
-          backup();
-          return `Deleted error #${args.id}`;
+          return withRetry(() => {
+            const database = getDb();
+            const row = database
+              .query("SELECT id FROM errors WHERE id = ?")
+              .get(args.id) as { id: number } | null;
+            if (!row) return `Error #${args.id} not found`;
+            database.prepare("DELETE FROM errors WHERE id = ?").run(args.id);
+            return `Deleted error #${args.id}`;
+          }, true);
         },
       }),
     },

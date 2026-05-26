@@ -108,6 +108,30 @@ function tryRestore(): Database | null {
   return restored;
 }
 
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
+}
+
 interface SnippetRow {
   id: number;
   title: string;
@@ -159,15 +183,16 @@ export const SnippetLibraryPlugin: Plugin = async () => {
           tags: tool.schema.array(tool.schema.string()).optional().describe("Categorization tags"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const tags = JSON.stringify(args.tags || []);
+          return withRetry(() => {
+            const database = getDb();
+            const tags = JSON.stringify(args.tags || []);
 
-          const result = database.prepare(
-            "INSERT INTO snippets (title, code, language, description, tags) VALUES (?, ?, ?, ?, ?)"
-          ).run(args.title, args.code, args.language || "", args.description || "", tags);
+            const result = database.prepare(
+              "INSERT INTO snippets (title, code, language, description, tags) VALUES (?, ?, ?, ?, ?)"
+            ).run(args.title, args.code, args.language || "", args.description || "", tags);
 
-          backup();
-          return `Saved snippet #${result.lastInsertRowid}: "${args.title}"`;
+            return `Saved snippet #${result.lastInsertRowid}: "${args.title}"`;
+          }, true);
         },
       }),
 
@@ -181,29 +206,31 @@ export const SnippetLibraryPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default 10)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit || 10;
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit || 10;
 
-          let sql = `SELECT s.* FROM snippets s JOIN snippets_fts f ON s.id = f.rowid WHERE snippets_fts MATCH ?`;
-          const params: any[] = [args.query];
+            let sql = `SELECT s.* FROM snippets s JOIN snippets_fts f ON s.id = f.rowid WHERE snippets_fts MATCH ?`;
+            const params: any[] = [args.query];
 
-          if (args.language) {
-            sql += " AND s.language = ?";
-            params.push(args.language);
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              sql += " AND s.tags LIKE ?";
-              params.push(`%"${tag}"%`);
+            if (args.language) {
+              sql += " AND s.language = ?";
+              params.push(args.language);
             }
-          }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                sql += " AND s.tags LIKE ?";
+                params.push(`%"${tag}"%`);
+              }
+            }
 
-          sql += " ORDER BY rank LIMIT ?";
-          params.push(limit);
+            sql += " ORDER BY rank LIMIT ?";
+            params.push(limit);
 
-          const rows = database.prepare(sql).all(...params) as SnippetRow[];
-          if (rows.length === 0) return "No snippets found matching query.";
-          return rows.map((r) => formatSnippet(r, true)).join("\n\n---\n\n");
+            const rows = database.prepare(sql).all(...params) as SnippetRow[];
+            if (rows.length === 0) return "No snippets found matching query.";
+            return rows.map((r) => formatSnippet(r, true)).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -216,29 +243,31 @@ export const SnippetLibraryPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default 20)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit || 20;
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit || 20;
 
-          let sql = "SELECT * FROM snippets WHERE 1=1";
-          const params: any[] = [];
+            let sql = "SELECT * FROM snippets WHERE 1=1";
+            const params: any[] = [];
 
-          if (args.language) {
-            sql += " AND language = ?";
-            params.push(args.language);
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              sql += " AND tags LIKE ?";
-              params.push(`%"${tag}"%`);
+            if (args.language) {
+              sql += " AND language = ?";
+              params.push(args.language);
             }
-          }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                sql += " AND tags LIKE ?";
+                params.push(`%"${tag}"%`);
+              }
+            }
 
-          sql += " ORDER BY created_at DESC LIMIT ?";
-          params.push(limit);
+            sql += " ORDER BY created_at DESC LIMIT ?";
+            params.push(limit);
 
-          const rows = database.prepare(sql).all(...params) as SnippetRow[];
-          if (rows.length === 0) return "No snippets found.";
-          return rows.map((r) => formatSnippet(r, false)).join("\n\n---\n\n");
+            const rows = database.prepare(sql).all(...params) as SnippetRow[];
+            if (rows.length === 0) return "No snippets found.";
+            return rows.map((r) => formatSnippet(r, false)).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -249,10 +278,12 @@ export const SnippetLibraryPlugin: Plugin = async () => {
           id: tool.schema.number().describe("Snippet ID"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const row = database.prepare("SELECT * FROM snippets WHERE id = ?").get(args.id) as SnippetRow | null;
-          if (!row) return `Snippet #${args.id} not found.`;
-          return formatSnippet(row, true);
+          return withRetry(() => {
+            const database = getDb();
+            const row = database.prepare("SELECT * FROM snippets WHERE id = ?").get(args.id) as SnippetRow | null;
+            if (!row) return `Snippet #${args.id} not found.`;
+            return formatSnippet(row, true);
+          });
         },
       }),
 
@@ -263,13 +294,14 @@ export const SnippetLibraryPlugin: Plugin = async () => {
           id: tool.schema.number().describe("Snippet ID to delete"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const existing = database.prepare("SELECT * FROM snippets WHERE id = ?").get(args.id) as SnippetRow | null;
-          if (!existing) return `Snippet #${args.id} not found.`;
+          return withRetry(() => {
+            const database = getDb();
+            const existing = database.prepare("SELECT * FROM snippets WHERE id = ?").get(args.id) as SnippetRow | null;
+            if (!existing) return `Snippet #${args.id} not found.`;
 
-          database.prepare("DELETE FROM snippets WHERE id = ?").run(args.id);
-          backup();
-          return `Deleted snippet #${args.id}: "${existing.title}"`;
+            database.prepare("DELETE FROM snippets WHERE id = ?").run(args.id);
+            return `Deleted snippet #${args.id}: "${existing.title}"`;
+          }, true);
         },
       }),
     },

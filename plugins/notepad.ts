@@ -115,6 +115,30 @@ function tryRestore(): Database | null {
   return restored;
 }
 
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
+}
+
 function isGitRepo(dir: string): boolean {
   return existsSync(join(dir, ".git"));
 }
@@ -217,18 +241,19 @@ export const NotepadPlugin: Plugin = async () => {
           tags: tool.schema.array(tool.schema.string()).optional().describe("Categorization tags"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
-          const tags = JSON.stringify(args.tags || []);
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
+            const tags = JSON.stringify(args.tags || []);
 
-          const result = database.prepare(
-            "INSERT INTO notes (title, content, tags, project_path) VALUES (?, ?, ?, ?)"
-          ).run(args.title, args.content || "", tags, projectPath);
+            const result = database.prepare(
+              "INSERT INTO notes (title, content, tags, project_path) VALUES (?, ?, ?, ?)"
+            ).run(args.title, args.content || "", tags, projectPath);
 
-          backup();
-          writeNotesFile(database, projectPath);
+            writeNotesFile(database, projectPath);
 
-          return `Added note #${result.lastInsertRowid}: "${args.title}"`;
+            return `Added note #${result.lastInsertRowid}: "${args.title}"`;
+          }, true);
         },
       }),
 
@@ -242,30 +267,31 @@ export const NotepadPlugin: Plugin = async () => {
           tags: tool.schema.array(tool.schema.string()).optional().describe("Replace tags"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const existing = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow | null;
-          if (!existing) return `Note #${args.id} not found.`;
+          return withRetry(() => {
+            const database = getDb();
+            const existing = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow | null;
+            if (!existing) return `Note #${args.id} not found.`;
 
-          const updates: string[] = [];
-          const params: any[] = [];
+            const updates: string[] = [];
+            const params: any[] = [];
 
-          if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
-          if (args.content !== undefined) { updates.push("content = ?"); params.push(args.content); }
-          if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
+            if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
+            if (args.content !== undefined) { updates.push("content = ?"); params.push(args.content); }
+            if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
 
-          if (updates.length === 0) return "No fields to update.";
+            if (updates.length === 0) return "No fields to update.";
 
-          updates.push("updated_at = datetime('now')");
-          params.push(args.id);
+            updates.push("updated_at = datetime('now')");
+            params.push(args.id);
 
-          database.prepare(`UPDATE notes SET ${updates.join(", ")} WHERE id = ?`).run(...params);
-          backup();
+            database.prepare(`UPDATE notes SET ${updates.join(", ")} WHERE id = ?`).run(...params);
 
-          const projectPath = existing.project_path || ctx.directory || process.cwd();
-          writeNotesFile(database, projectPath);
+            const projectPath = existing.project_path || ctx.directory || process.cwd();
+            writeNotesFile(database, projectPath);
 
-          const updated = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow;
-          return `Updated note #${args.id}:\n${formatNote(updated)}`;
+            const updated = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow;
+            return `Updated note #${args.id}:\n${formatNote(updated)}`;
+          }, true);
         },
       }),
 
@@ -277,27 +303,29 @@ export const NotepadPlugin: Plugin = async () => {
           all_projects: tool.schema.boolean().optional().describe("Show notes from all projects"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
-          let sql = "SELECT * FROM notes WHERE 1=1";
-          const params: any[] = [];
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
+            let sql = "SELECT * FROM notes WHERE 1=1";
+            const params: any[] = [];
 
-          if (!args.all_projects) {
-            sql += " AND project_path = ?";
-            params.push(projectPath);
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              sql += " AND tags LIKE ?";
-              params.push(`%"${tag}"%`);
+            if (!args.all_projects) {
+              sql += " AND project_path = ?";
+              params.push(projectPath);
             }
-          }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                sql += " AND tags LIKE ?";
+                params.push(`%"${tag}"%`);
+              }
+            }
 
-          sql += " ORDER BY created_at DESC";
+            sql += " ORDER BY created_at DESC";
 
-          const rows = database.prepare(sql).all(...params) as NoteRow[];
-          if (rows.length === 0) return "No notes found.";
-          return rows.map(formatNote).join("\n\n---\n\n");
+            const rows = database.prepare(sql).all(...params) as NoteRow[];
+            if (rows.length === 0) return "No notes found.";
+            return rows.map(formatNote).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -309,22 +337,24 @@ export const NotepadPlugin: Plugin = async () => {
           all_projects: tool.schema.boolean().optional().describe("Search across all projects"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const projectPath = ctx.directory || process.cwd();
+          return withRetry(() => {
+            const database = getDb();
+            const projectPath = ctx.directory || process.cwd();
 
-          let sql: string;
-          const params: any[] = [args.query];
+            let sql: string;
+            const params: any[] = [args.query];
 
-          if (args.all_projects) {
-            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? ORDER BY rank LIMIT 25`;
-          } else {
-            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? AND n.project_path = ? ORDER BY rank LIMIT 25`;
-            params.push(projectPath);
-          }
+            if (args.all_projects) {
+              sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? ORDER BY rank LIMIT 25`;
+            } else {
+              sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? AND n.project_path = ? ORDER BY rank LIMIT 25`;
+              params.push(projectPath);
+            }
 
-          const rows = database.prepare(sql).all(...params) as NoteRow[];
-          if (rows.length === 0) return "No notes found matching query.";
-          return rows.map(formatNote).join("\n\n---\n\n");
+            const rows = database.prepare(sql).all(...params) as NoteRow[];
+            if (rows.length === 0) return "No notes found matching query.";
+            return rows.map(formatNote).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -335,17 +365,18 @@ export const NotepadPlugin: Plugin = async () => {
           id: tool.schema.number().describe("Note ID to delete"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const existing = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow | null;
-          if (!existing) return `Note #${args.id} not found.`;
+          return withRetry(() => {
+            const database = getDb();
+            const existing = database.prepare("SELECT * FROM notes WHERE id = ?").get(args.id) as NoteRow | null;
+            if (!existing) return `Note #${args.id} not found.`;
 
-          database.prepare("DELETE FROM notes WHERE id = ?").run(args.id);
-          backup();
+            database.prepare("DELETE FROM notes WHERE id = ?").run(args.id);
 
-          const projectPath = existing.project_path || ctx.directory || process.cwd();
-          writeNotesFile(database, projectPath);
+            const projectPath = existing.project_path || ctx.directory || process.cwd();
+            writeNotesFile(database, projectPath);
 
-          return `Deleted note #${args.id}: "${existing.title}"`;
+            return `Deleted note #${args.id}: "${existing.title}"`;
+          }, true);
         },
       }),
     },
