@@ -539,7 +539,7 @@ const memoryList = tool({
       const tagParams: unknown[] = [];
       if (args.tags && args.tags.length > 0) {
         for (const tag of args.tags) {
-          tagClauses.push("tags LIKE ?");
+          tagClauses.push("m.tags LIKE ?");
           tagParams.push(`%"${tag}"%`);
         }
       }
