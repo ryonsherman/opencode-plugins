@@ -126,6 +126,30 @@ function tryRestore(): Database | null {
   return restored;
 }
 
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
+}
+
 interface DecisionRow {
   id: number;
   session_id: string | null;
@@ -172,24 +196,25 @@ export const DecisionLogPlugin: Plugin = async () => {
           project: tool.schema.string().optional().describe("Project this decision applies to"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const status = args.status || "accepted";
-          const tags = JSON.stringify(args.tags || []);
-          const stmt = database.prepare(
-            "INSERT INTO decisions (session_id, title, context, decision, consequences, status, tags, project) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-          );
-          const result = stmt.run(
-            ctx.sessionID || null,
-            args.title,
-            args.context || null,
-            args.decision,
-            args.consequences || null,
-            status,
-            tags,
-            args.project || null
-          );
-          backup();
-          return `Logged decision #${result.lastInsertRowid}: "${args.title}" [${status}]`;
+          return withRetry(() => {
+            const database = getDb();
+            const status = args.status || "accepted";
+            const tags = JSON.stringify(args.tags || []);
+            const stmt = database.prepare(
+              "INSERT INTO decisions (session_id, title, context, decision, consequences, status, tags, project) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            const result = stmt.run(
+              ctx.sessionID || null,
+              args.title,
+              args.context || null,
+              args.decision,
+              args.consequences || null,
+              status,
+              tags,
+              args.project || null
+            );
+            return `Logged decision #${result.lastInsertRowid}: "${args.title}" [${status}]`;
+          }, true);
         },
       }),
 
@@ -199,10 +224,12 @@ export const DecisionLogPlugin: Plugin = async () => {
           id: tool.schema.number().describe("Decision ID"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const row = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow | null;
-          if (!row) return `Decision #${args.id} not found.`;
-          return formatDecision(row);
+          return withRetry(() => {
+            const database = getDb();
+            const row = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow | null;
+            if (!row) return `Decision #${args.id} not found.`;
+            return formatDecision(row);
+          });
         },
       }),
 
@@ -215,25 +242,27 @@ export const DecisionLogPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default: 10)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit ?? 10;
-          let sql = `SELECT d.* FROM decisions d
-               JOIN decisions_fts f ON d.id = f.rowid
-               WHERE decisions_fts MATCH ?`;
-          const params: any[] = [args.query];
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit ?? 10;
+            let sql = `SELECT d.* FROM decisions d
+                 JOIN decisions_fts f ON d.id = f.rowid
+                 WHERE decisions_fts MATCH ?`;
+            const params: any[] = [args.query];
 
-          if (!args.all_sessions && ctx.sessionID) {
-            sql += " AND d.session_id = ?";
-            params.push(ctx.sessionID);
-          }
+            if (!args.all_sessions && ctx.sessionID) {
+              sql += " AND d.session_id = ?";
+              params.push(ctx.sessionID);
+            }
 
-          sql += " ORDER BY rank LIMIT ?";
-          params.push(limit);
+            sql += " ORDER BY rank LIMIT ?";
+            params.push(limit);
 
-          const rows = database.prepare(sql).all(...params) as DecisionRow[];
+            const rows = database.prepare(sql).all(...params) as DecisionRow[];
 
-          if (rows.length === 0) return "No decisions found.";
-          return rows.map(formatDecision).join("\n\n---\n\n");
+            if (rows.length === 0) return "No decisions found.";
+            return rows.map(formatDecision).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -248,43 +277,44 @@ export const DecisionLogPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default: 20)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit ?? 20;
-          let sql = "SELECT * FROM decisions WHERE 1=1";
-          const params: any[] = [];
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit ?? 20;
+            let where = "WHERE 1=1";
+            const params: any[] = [];
 
-          if (!args.all_sessions && ctx.sessionID) {
-            sql += " AND session_id = ?";
-            params.push(ctx.sessionID);
-          }
-
-          if (args.status) {
-            sql += " AND status = ?";
-            params.push(args.status);
-          }
-          if (args.project) {
-            sql += " AND project = ?";
-            params.push(args.project);
-          }
-          if (args.tags && args.tags.length > 0) {
-            for (const tag of args.tags) {
-              sql += " AND tags LIKE ?";
-              params.push(`%"${tag}"%`);
+            if (!args.all_sessions && ctx.sessionID) {
+              where += " AND session_id = ?";
+              params.push(ctx.sessionID);
             }
-          }
 
-          sql += " ORDER BY created_at DESC LIMIT ?";
-          params.push(limit);
+            if (args.status) {
+              where += " AND status = ?";
+              params.push(args.status);
+            }
+            if (args.project) {
+              where += " AND project = ?";
+              params.push(args.project);
+            }
+            if (args.tags && args.tags.length > 0) {
+              for (const tag of args.tags) {
+                where += " AND tags LIKE ?";
+                params.push(`%"${tag}"%`);
+              }
+            }
 
-          const rows = database.prepare(sql).all(...params) as DecisionRow[];
+            const rows = database.prepare(
+              `SELECT * FROM decisions ${where} ORDER BY created_at DESC LIMIT ?`
+            ).all(...params, limit) as DecisionRow[];
 
-          if (rows.length === 0) return "No decisions found.";
+            if (rows.length === 0) return "No decisions found.";
 
-          const countParams = params.slice(0, -1);
-          const countSql = sql.replace(/^SELECT \*/, "SELECT COUNT(*) as count").replace(/ ORDER BY[^)]*$/, "");
-          const total = (database.prepare(countSql).get(...countParams) as { count: number }).count;
-          const header = `Showing ${rows.length} of ${total} matching decisions:\n\n`;
-          return header + rows.map(formatDecision).join("\n\n---\n\n");
+            const total = (database.prepare(
+              `SELECT COUNT(*) as count FROM decisions ${where}`
+            ).get(...params) as { count: number }).count;
+            const header = `Showing ${rows.length} of ${total} matching decisions:\n\n`;
+            return header + rows.map(formatDecision).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -303,32 +333,33 @@ export const DecisionLogPlugin: Plugin = async () => {
           project: tool.schema.string().optional().describe("Update project"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const existing = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow | null;
-          if (!existing) return `Decision #${args.id} not found.`;
+          return withRetry(() => {
+            const database = getDb();
+            const existing = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow | null;
+            if (!existing) return `Decision #${args.id} not found.`;
 
-          const updates: string[] = [];
-          const params: any[] = [];
+            const updates: string[] = [];
+            const params: any[] = [];
 
-          if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
-          if (args.context !== undefined) { updates.push("context = ?"); params.push(args.context); }
-          if (args.decision !== undefined) { updates.push("decision = ?"); params.push(args.decision); }
-          if (args.consequences !== undefined) { updates.push("consequences = ?"); params.push(args.consequences); }
-          if (args.status !== undefined) { updates.push("status = ?"); params.push(args.status); }
-          if (args.superseded_by !== undefined) { updates.push("superseded_by = ?"); params.push(args.superseded_by); }
-          if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
-          if (args.project !== undefined) { updates.push("project = ?"); params.push(args.project); }
+            if (args.title !== undefined) { updates.push("title = ?"); params.push(args.title); }
+            if (args.context !== undefined) { updates.push("context = ?"); params.push(args.context); }
+            if (args.decision !== undefined) { updates.push("decision = ?"); params.push(args.decision); }
+            if (args.consequences !== undefined) { updates.push("consequences = ?"); params.push(args.consequences); }
+            if (args.status !== undefined) { updates.push("status = ?"); params.push(args.status); }
+            if (args.superseded_by !== undefined) { updates.push("superseded_by = ?"); params.push(args.superseded_by); }
+            if (args.tags !== undefined) { updates.push("tags = ?"); params.push(JSON.stringify(args.tags)); }
+            if (args.project !== undefined) { updates.push("project = ?"); params.push(args.project); }
 
-          if (updates.length === 0) return "No fields to update.";
+            if (updates.length === 0) return "No fields to update.";
 
-          updates.push("updated_at = datetime('now')");
-          params.push(args.id);
+            updates.push("updated_at = datetime('now')");
+            params.push(args.id);
 
-          database.prepare(`UPDATE decisions SET ${updates.join(", ")} WHERE id = ?`).run(...params);
-          backup();
+            database.prepare(`UPDATE decisions SET ${updates.join(", ")} WHERE id = ?`).run(...params);
 
-          const updated = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow;
-          return `Updated decision #${args.id}:\n\n${formatDecision(updated)}`;
+            const updated = database.prepare("SELECT * FROM decisions WHERE id = ?").get(args.id) as DecisionRow;
+            return `Updated decision #${args.id}:\n\n${formatDecision(updated)}`;
+          }, true);
         },
       }),
     },

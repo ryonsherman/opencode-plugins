@@ -75,6 +75,15 @@ function initSchema(database: Database): void {
       END
     `);
 
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS commands_au AFTER UPDATE ON commands BEGIN
+        INSERT INTO commands_fts(commands_fts, rowid, command, output, directory)
+        VALUES ('delete', old.id, old.command, COALESCE(old.output, ''), COALESCE(old.directory, ''));
+        INSERT INTO commands_fts(rowid, command, output, directory)
+        VALUES (new.id, new.command, COALESCE(new.output, ''), COALESCE(new.directory, ''));
+      END
+    `);
+
     // Backfill existing rows
     database.exec(`
       INSERT INTO commands_fts(rowid, command, output, directory)
@@ -108,6 +117,30 @@ function tryRestore(): Database | null {
   restored.exec("PRAGMA journal_mode=WAL");
   initSchema(restored);
   return restored;
+}
+
+function isCorruption(err: unknown): boolean {
+  const msg = String(err);
+  return /corrupt|malformed|disk image|not a database/i.test(msg);
+}
+
+function withRetry<T>(fn: () => T, isWrite = false): T {
+  try {
+    const result = fn();
+    if (isWrite) { try { backup(); } catch {} }
+    return result;
+  } catch (err) {
+    if (isCorruption(err)) {
+      db = null;
+      db = tryRestore();
+      if (db) {
+        const result = fn();
+        if (isWrite) { try { backup(); } catch {} }
+        return result;
+      }
+    }
+    throw err;
+  }
 }
 
 interface CommandRow {
@@ -146,19 +179,20 @@ export const CommandHistoryPlugin: Plugin = async () => {
           directory: tool.schema.string().optional().describe("Working directory where the command was run"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const stmt = database.prepare(
-            "INSERT INTO commands (session_id, command, output, exit_code, directory) VALUES (?, ?, ?, ?, ?)"
-          );
-          const result = stmt.run(
-            ctx.sessionID || null,
-            args.command,
-            args.output || null,
-            args.exit_code ?? null,
-            args.directory || null
-          );
-          backup();
-          return `Logged command #${result.lastInsertRowid}: \`${args.command}\``;
+          return withRetry(() => {
+            const database = getDb();
+            const stmt = database.prepare(
+              "INSERT INTO commands (session_id, command, output, exit_code, directory) VALUES (?, ?, ?, ?, ?)"
+            );
+            const result = stmt.run(
+              ctx.sessionID || null,
+              args.command,
+              args.output || null,
+              args.exit_code ?? null,
+              args.directory || null
+            );
+            return `Logged command #${result.lastInsertRowid}: \`${args.command}\``;
+          }, true);
         },
       }),
 
@@ -170,20 +204,22 @@ export const CommandHistoryPlugin: Plugin = async () => {
           limit: tool.schema.number().optional().describe("Max results (default: 10)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit ?? 10;
-          const rows = database
-            .prepare(
-              `SELECT c.* FROM commands c
-               JOIN commands_fts f ON c.id = f.rowid
-               WHERE commands_fts MATCH ?
-               ORDER BY rank
-               LIMIT ?`
-            )
-            .all(args.query, limit) as CommandRow[];
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit ?? 10;
+            const rows = database
+              .prepare(
+                `SELECT c.* FROM commands c
+                 JOIN commands_fts f ON c.id = f.rowid
+                 WHERE commands_fts MATCH ?
+                 ORDER BY rank
+                 LIMIT ?`
+              )
+              .all(args.query, limit) as CommandRow[];
 
-          if (rows.length === 0) return "No commands found.";
-          return rows.map(formatCommand).join("\n\n---\n\n");
+            if (rows.length === 0) return "No commands found.";
+            return rows.map(formatCommand).join("\n\n---\n\n");
+          });
         },
       }),
 
@@ -196,32 +232,33 @@ export const CommandHistoryPlugin: Plugin = async () => {
           session_only: tool.schema.boolean().optional().describe("Only show commands from current session (default: false)"),
         },
         async execute(args, ctx) {
-          const database = getDb();
-          const limit = args.limit ?? 20;
-          let sql = "SELECT * FROM commands WHERE 1=1";
-          const params: any[] = [];
+          return withRetry(() => {
+            const database = getDb();
+            const limit = args.limit ?? 20;
+            let where = "WHERE 1=1";
+            const params: any[] = [];
 
-          if (args.directory) {
-            sql += " AND directory LIKE ?";
-            params.push(args.directory + "%");
-          }
-          if (args.session_only && ctx.sessionID) {
-            sql += " AND session_id = ?";
-            params.push(ctx.sessionID);
-          }
+            if (args.directory) {
+              where += " AND directory LIKE ?";
+              params.push(args.directory + "%");
+            }
+            if (args.session_only && ctx.sessionID) {
+              where += " AND session_id = ?";
+              params.push(ctx.sessionID);
+            }
 
-          sql += " ORDER BY created_at DESC LIMIT ?";
-          params.push(limit);
+            const rows = database.prepare(
+              `SELECT * FROM commands ${where} ORDER BY created_at DESC LIMIT ?`
+            ).all(...params, limit) as CommandRow[];
 
-          const rows = database.prepare(sql).all(...params) as CommandRow[];
+            if (rows.length === 0) return "No commands in history.";
 
-          if (rows.length === 0) return "No commands in history.";
-
-          const countParams = params.slice(0, -1);
-          const countSql = sql.replace(/^SELECT \*/, "SELECT COUNT(*) as count").replace(/ ORDER BY[^)]*$/, "");
-          const total = (database.prepare(countSql).get(...countParams) as { count: number }).count;
-          const header = `Showing ${rows.length} of ${total} matching commands:\n\n`;
-          return header + rows.map(formatCommand).join("\n\n---\n\n");
+            const total = (database.prepare(
+              `SELECT COUNT(*) as count FROM commands ${where}`
+            ).get(...params) as { count: number }).count;
+            const header = `Showing ${rows.length} of ${total} matching commands:\n\n`;
+            return header + rows.map(formatCommand).join("\n\n---\n\n");
+          });
         },
       }),
     },

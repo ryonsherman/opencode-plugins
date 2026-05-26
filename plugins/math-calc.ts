@@ -72,32 +72,265 @@ function convert(value: number, from: string, to: string): string {
 }
 
 function safeEval(expression: string): string {
-  // Reject anything that looks like code injection
-  const forbidden = /[;{}\[\]`'"\$\\]|function|return|var|let|const|import|export|require|process|global|this|constructor|prototype|__proto__|Reflect|Object|Proxy|Symbol|eval|Function|getPrototypeOf/i;
-  if (forbidden.test(expression)) {
-    return "Error: Expression contains forbidden characters or keywords";
+  // Recursive descent parser — no code execution, only math operations
+  const mathConstants: Record<string, number> = {
+    PI: Math.PI, E: Math.E, LN2: Math.LN2, LN10: Math.LN10,
+    LOG2E: Math.LOG2E, LOG10E: Math.LOG10E, SQRT2: Math.SQRT2, SQRT1_2: Math.SQRT1_2,
+    Infinity: Infinity, NaN: NaN,
+  };
+  const mathFunctions: Record<string, (...args: number[]) => number> = {
+    abs: Math.abs, acos: Math.acos, acosh: Math.acosh, asin: Math.asin,
+    asinh: Math.asinh, atan: Math.atan, atanh: Math.atanh, atan2: Math.atan2,
+    cbrt: Math.cbrt, ceil: Math.ceil, clz32: Math.clz32, cos: Math.cos,
+    cosh: Math.cosh, exp: Math.exp, expm1: Math.expm1, floor: Math.floor,
+    fround: Math.fround, hypot: Math.hypot, imul: Math.imul, log: Math.log,
+    log1p: Math.log1p, log2: Math.log2, log10: Math.log10, max: Math.max,
+    min: Math.min, pow: Math.pow, random: Math.random, round: Math.round,
+    sign: Math.sign, sin: Math.sin, sinh: Math.sinh, sqrt: Math.sqrt,
+    tan: Math.tan, tanh: Math.tanh, trunc: Math.trunc,
+  };
+
+  let pos = 0;
+  const input = expression.trim();
+
+  function peek(): string { return input[pos] || ""; }
+  function advance(): string { return input[pos++]; }
+  function skipWhitespace(): void { while (pos < input.length && /\s/.test(input[pos])) pos++; }
+
+  function parseExpression(): number {
+    return parseTernary();
   }
 
-  // Allow: numbers, operators, parens, dots, commas, whitespace, Math functions, common constants
-  const allowed = /^[\d\s+\-*/%.(),^|&~!<>=?:a-zA-Z_]+$/;
-  if (!allowed.test(expression)) {
-    return "Error: Expression contains invalid characters";
+  function parseTernary(): number {
+    const cond = parseOr();
+    skipWhitespace();
+    if (peek() === "?") {
+      advance(); skipWhitespace();
+      const thenVal = parseExpression();
+      skipWhitespace();
+      if (peek() !== ":") throw new Error("Expected ':' in ternary");
+      advance(); skipWhitespace();
+      const elseVal = parseExpression();
+      return cond ? thenVal : elseVal;
+    }
+    return cond;
+  }
+
+  function parseOr(): number {
+    let left = parseAnd();
+    skipWhitespace();
+    while (pos < input.length - 1 && input[pos] === "|" && input[pos + 1] === "|") {
+      pos += 2; skipWhitespace();
+      const right = parseAnd();
+      left = (left || right) ? 1 : 0;
+    }
+    return left;
+  }
+
+  function parseAnd(): number {
+    let left = parseBitwiseOr();
+    skipWhitespace();
+    while (pos < input.length - 1 && input[pos] === "&" && input[pos + 1] === "&") {
+      pos += 2; skipWhitespace();
+      const right = parseBitwiseOr();
+      left = (left && right) ? 1 : 0;
+    }
+    return left;
+  }
+
+  function parseBitwiseOr(): number {
+    let left = parseBitwiseXor();
+    skipWhitespace();
+    while (peek() === "|" && input[pos + 1] !== "|") {
+      advance(); skipWhitespace();
+      left = (left | parseBitwiseXor()) >>> 0;
+    }
+    return left;
+  }
+
+  function parseBitwiseXor(): number {
+    let left = parseBitwiseAnd();
+    skipWhitespace();
+    while (peek() === "^" && input[pos + 1] !== "^") {
+      advance(); skipWhitespace();
+      left = (left ^ parseBitwiseAnd()) >>> 0;
+    }
+    return left;
+  }
+
+  function parseBitwiseAnd(): number {
+    let left = parseEquality();
+    skipWhitespace();
+    while (peek() === "&" && input[pos + 1] !== "&") {
+      advance(); skipWhitespace();
+      left = (left & parseEquality()) >>> 0;
+    }
+    return left;
+  }
+
+  function parseEquality(): number {
+    let left = parseComparison();
+    skipWhitespace();
+    while (pos < input.length - 1) {
+      if (input[pos] === "=" && input[pos + 1] === "=") {
+        pos += 2; skipWhitespace();
+        left = left === parseComparison() ? 1 : 0;
+      } else if (input[pos] === "!" && input[pos + 1] === "=") {
+        pos += 2; skipWhitespace();
+        left = left !== parseComparison() ? 1 : 0;
+      } else break;
+    }
+    return left;
+  }
+
+  function parseComparison(): number {
+    let left = parseShift();
+    skipWhitespace();
+    while (pos < input.length) {
+      if (input[pos] === "<" && input[pos + 1] === "=") {
+        pos += 2; skipWhitespace(); left = left <= parseShift() ? 1 : 0;
+      } else if (input[pos] === ">" && input[pos + 1] === "=") {
+        pos += 2; skipWhitespace(); left = left >= parseShift() ? 1 : 0;
+      } else if (input[pos] === "<" && input[pos + 1] !== "<") {
+        pos += 1; skipWhitespace(); left = left < parseShift() ? 1 : 0;
+      } else if (input[pos] === ">" && input[pos + 1] !== ">") {
+        pos += 1; skipWhitespace(); left = left > parseShift() ? 1 : 0;
+      } else break;
+    }
+    return left;
+  }
+
+  function parseShift(): number {
+    let left = parseAddSub();
+    skipWhitespace();
+    while (pos < input.length - 1) {
+      if (input[pos] === "<" && input[pos + 1] === "<") {
+        pos += 2; skipWhitespace(); left = left << parseAddSub();
+      } else if (input[pos] === ">" && input[pos + 1] === ">" && input[pos + 2] === ">") {
+        pos += 3; skipWhitespace(); left = left >>> parseAddSub();
+      } else if (input[pos] === ">" && input[pos + 1] === ">") {
+        pos += 2; skipWhitespace(); left = left >> parseAddSub();
+      } else break;
+    }
+    return left;
+  }
+
+  function parseAddSub(): number {
+    let left = parseMulDiv();
+    skipWhitespace();
+    while (peek() === "+" || peek() === "-") {
+      const op = advance(); skipWhitespace();
+      const right = parseMulDiv();
+      left = op === "+" ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseMulDiv(): number {
+    let left = parseExponent();
+    skipWhitespace();
+    while (peek() === "*" && input[pos + 1] !== "*" || peek() === "/" || peek() === "%") {
+      const op = advance(); skipWhitespace();
+      const right = parseExponent();
+      if (op === "*") left = left * right;
+      else if (op === "/") left = left / right;
+      else left = left % right;
+    }
+    return left;
+  }
+
+  function parseExponent(): number {
+    const base = parseUnary();
+    skipWhitespace();
+    if (pos < input.length - 1 && input[pos] === "*" && input[pos + 1] === "*") {
+      pos += 2; skipWhitespace();
+      return Math.pow(base, parseExponent()); // right-associative
+    }
+    return base;
+  }
+
+  function parseUnary(): number {
+    skipWhitespace();
+    if (peek() === "-") { advance(); skipWhitespace(); return -parseUnary(); }
+    if (peek() === "+") { advance(); skipWhitespace(); return +parseUnary(); }
+    if (peek() === "~") { advance(); skipWhitespace(); return ~parseUnary(); }
+    if (peek() === "!") { advance(); skipWhitespace(); return parseUnary() ? 0 : 1; }
+    return parseAtom();
+  }
+
+  function parseAtom(): number {
+    skipWhitespace();
+
+    // Parenthesized expression
+    if (peek() === "(") {
+      advance(); skipWhitespace();
+      const val = parseExpression();
+      skipWhitespace();
+      if (peek() !== ")") throw new Error("Expected ')'");
+      advance();
+      return val;
+    }
+
+    // Number literal
+    if (/[\d.]/.test(peek())) {
+      let numStr = "";
+      // Handle hex/octal/binary
+      if (peek() === "0" && pos + 1 < input.length && /[xXoObB]/.test(input[pos + 1])) {
+        numStr += advance() + advance();
+        while (pos < input.length && /[\da-fA-F]/.test(input[pos])) numStr += advance();
+      } else {
+        while (pos < input.length && /[\d.]/.test(input[pos])) numStr += advance();
+        if (peek() === "e" || peek() === "E") {
+          numStr += advance();
+          if (peek() === "+" || peek() === "-") numStr += advance();
+          while (pos < input.length && /\d/.test(input[pos])) numStr += advance();
+        }
+      }
+      const num = Number(numStr);
+      if (isNaN(num) && numStr !== "NaN") throw new Error(`Invalid number: ${numStr}`);
+      return num;
+    }
+
+    // Identifier: constant or function call
+    if (/[a-zA-Z_]/.test(peek())) {
+      let name = "";
+      while (pos < input.length && /[a-zA-Z0-9_]/.test(input[pos])) name += advance();
+      skipWhitespace();
+
+      // Function call
+      if (peek() === "(") {
+        const fn = Object.prototype.hasOwnProperty.call(mathFunctions, name) ? mathFunctions[name] : null;
+        if (!fn) throw new Error(`Unknown function: ${name}`);
+        advance(); skipWhitespace();
+        const args: number[] = [];
+        if (peek() !== ")") {
+          args.push(parseExpression());
+          skipWhitespace();
+          while (peek() === ",") {
+            advance(); skipWhitespace();
+            args.push(parseExpression());
+            skipWhitespace();
+          }
+        }
+        if (peek() !== ")") throw new Error("Expected ')'");
+        advance();
+        return fn(...args);
+      }
+
+      // Constant
+      if (Object.prototype.hasOwnProperty.call(mathConstants, name)) return mathConstants[name];
+      throw new Error(`Unknown identifier: ${name}`);
+    }
+
+    throw new Error(`Unexpected character: '${peek()}' at position ${pos}`);
   }
 
   try {
-    // Expose Math functions at top level
-    const mathFns = Object.getOwnPropertyNames(Math)
-      .map((k) => `const ${k} = Math.${k};`)
-      .join(" ");
-    const fn = new Function(`${mathFns} return (${expression});`);
-    const result = fn();
-    if (typeof result === "number" || typeof result === "bigint") {
-      return `${expression} = ${result}`;
-    }
-    if (typeof result === "boolean") {
-      return `${expression} = ${result}`;
-    }
-    return `Error: Expression did not produce a number (got ${typeof result})`;
+    const result = parseExpression();
+    skipWhitespace();
+    if (pos < input.length) throw new Error(`Unexpected character: '${peek()}' at position ${pos}`);
+    if (typeof result !== "number") return `Error: Expression did not produce a number`;
+    return `${expression} = ${result}`;
   } catch (e: any) {
     return `Error: ${e.message}`;
   }
