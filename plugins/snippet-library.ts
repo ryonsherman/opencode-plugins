@@ -55,6 +55,14 @@ function initSchema(database: Database): void {
     )
   `);
 
+  // Ensure triggers exist (rebuild FTS if missing)
+  const hasTrigger = database.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='snippets_ai'"
+  ).get();
+  if (!hasTrigger) {
+    database.exec("INSERT INTO snippets_fts(snippets_fts) VALUES('rebuild')");
+  }
+
   database.exec(`
     CREATE TRIGGER IF NOT EXISTS snippets_ai AFTER INSERT ON snippets BEGIN
       INSERT INTO snippets_fts(rowid, title, code, description, language, tags) VALUES (new.id, new.title, new.code, new.description, new.language, new.tags);

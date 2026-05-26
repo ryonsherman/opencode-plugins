@@ -374,8 +374,8 @@ export const ProjectProfilePlugin: Plugin = async () => {
           const dir = resolve(args.path || ctx.directory);
           if (!existsSync(dir)) return `Directory not found: ${dir}`;
 
-          const db = getDb();
-          const row = db.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
+          const database = getDb();
+          const row = database.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
 
           if (row) {
             const profile: ProjectProfile = JSON.parse(row.data);
@@ -384,7 +384,7 @@ export const ProjectProfilePlugin: Plugin = async () => {
 
           // Auto-scan on first access
           const profile = scanProject(dir);
-          db.prepare("INSERT OR REPLACE INTO profiles (path, name, data, scanned_at) VALUES (?, ?, ?, ?)").run(
+          database.prepare("INSERT OR REPLACE INTO profiles (path, name, data, scanned_at) VALUES (?, ?, ?, ?)").run(
             profile.path, profile.name, JSON.stringify(profile), profile.scannedAt
           );
           backup();
@@ -402,16 +402,16 @@ export const ProjectProfilePlugin: Plugin = async () => {
           if (!existsSync(dir)) return `Directory not found: ${dir}`;
 
           const profile = scanProject(dir);
-          const db = getDb();
+          const database = getDb();
 
           // Preserve existing conventions
-          const existing = db.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
+          const existing = database.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
           if (existing) {
             const old: ProjectProfile = JSON.parse(existing.data);
             profile.conventions = old.conventions;
           }
 
-          db.prepare("INSERT OR REPLACE INTO profiles (path, name, data, scanned_at) VALUES (?, ?, ?, ?)").run(
+          database.prepare("INSERT OR REPLACE INTO profiles (path, name, data, scanned_at) VALUES (?, ?, ?, ?)").run(
             profile.path, profile.name, JSON.stringify(profile), profile.scannedAt
           );
           backup();
@@ -426,8 +426,8 @@ export const ProjectProfilePlugin: Plugin = async () => {
         },
         async execute(args, ctx) {
           const dir = resolve(args.path || ctx.directory);
-          const db = getDb();
-          const result = db.prepare("DELETE FROM profiles WHERE path = ?").run(dir);
+          const database = getDb();
+          const result = database.prepare("DELETE FROM profiles WHERE path = ?").run(dir);
           if (result.changes === 0) return `No profile found for: ${dir}`;
           backup();
           return `Deleted profile for: ${dir}`;
@@ -443,13 +443,13 @@ export const ProjectProfilePlugin: Plugin = async () => {
         },
         async execute(args, ctx) {
           const dir = resolve(args.path || ctx.directory);
-          const db = getDb();
-          const row = db.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
+          const database = getDb();
+          const row = database.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
           if (!row) return `No profile found for: ${dir}. Run project_scan first.`;
 
           const profile: ProjectProfile = JSON.parse(row.data);
           profile.conventions.push(args.convention);
-          db.prepare("UPDATE profiles SET data = ? WHERE path = ?").run(JSON.stringify(profile), dir);
+          database.prepare("UPDATE profiles SET data = ? WHERE path = ?").run(JSON.stringify(profile), dir);
           backup();
           return `Added convention: "${args.convention}"\n\nTotal conventions: ${profile.conventions.length}`;
         },
@@ -463,8 +463,8 @@ export const ProjectProfilePlugin: Plugin = async () => {
         },
         async execute(args, ctx) {
           const dir = resolve(args.path || ctx.directory);
-          const db = getDb();
-          const row = db.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
+          const database = getDb();
+          const row = database.prepare("SELECT data FROM profiles WHERE path = ?").get(dir) as any;
           if (!row) return `No profile found for: ${dir}. Run project_scan first.`;
 
           const profile: ProjectProfile = JSON.parse(row.data);
@@ -473,7 +473,7 @@ export const ProjectProfilePlugin: Plugin = async () => {
             return `Invalid index. Project has ${profile.conventions.length} convention(s).`;
           }
           const removed = profile.conventions.splice(idx, 1)[0];
-          db.prepare("UPDATE profiles SET data = ? WHERE path = ?").run(JSON.stringify(profile), dir);
+          database.prepare("UPDATE profiles SET data = ? WHERE path = ?").run(JSON.stringify(profile), dir);
           backup();
           return `Removed convention: "${removed}"\n\nRemaining: ${profile.conventions.length}`;
         },

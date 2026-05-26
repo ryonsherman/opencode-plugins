@@ -55,6 +55,14 @@ function initSchema(database: Database): void {
     )
   `);
 
+  // Ensure triggers exist (rebuild FTS if missing)
+  const hasTrigger = database.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='notes_ai'"
+  ).get();
+  if (!hasTrigger) {
+    database.exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')");
+  }
+
   database.exec(`
     CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
       INSERT INTO notes_fts(rowid, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
