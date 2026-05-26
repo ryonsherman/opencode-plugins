@@ -342,7 +342,9 @@ function indexProject(rootPath: string): { files: number; chunks: number } {
     database.exec("COMMIT");
 
     // Rebuild FTS index and recreate triggers
-    database.exec("INSERT INTO code_chunks_fts(code_chunks_fts) VALUES('rebuild')");
+    try {
+      database.exec("INSERT INTO code_chunks_fts(code_chunks_fts) VALUES('rebuild')");
+    } catch {}
     database.exec(`
       CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON code_chunks BEGIN
         INSERT INTO code_chunks_fts(rowid, content) VALUES (new.id, new.content);
@@ -362,7 +364,24 @@ function indexProject(rootPath: string): { files: number; chunks: number } {
 
     return { files: fileCount, chunks: chunkCount };
   } catch (err) {
-    database.exec("ROLLBACK");
+    try { database.exec("ROLLBACK"); } catch {}
+    // Always restore triggers even on failure
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_ai AFTER INSERT ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(rowid, content) VALUES (new.id, new.content);
+      END
+    `);
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_ad AFTER DELETE ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(code_chunks_fts, rowid, content) VALUES ('delete', old.id, old.content);
+      END
+    `);
+    database.exec(`
+      CREATE TRIGGER IF NOT EXISTS chunks_au AFTER UPDATE ON code_chunks BEGIN
+        INSERT INTO code_chunks_fts(code_chunks_fts, rowid, content) VALUES ('delete', old.id, old.content);
+        INSERT INTO code_chunks_fts(rowid, content) VALUES (new.id, new.content);
+      END
+    `);
     throw err;
   }
 }
