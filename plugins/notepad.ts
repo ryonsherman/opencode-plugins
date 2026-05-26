@@ -193,7 +193,7 @@ function writeNotesFile(database: Database, projectPath: string): void {
   writeFileSync(filePath, content);
   ensureGitignore(projectPath, ".NOTES.md");
 
-  const hash = Buffer.from(content).toString("base64");
+  const hash = new Bun.CryptoHasher("sha256").update(content).digest("hex");
   database.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(`last_render:${projectPath}`, hash);
 }
 
@@ -308,9 +308,9 @@ export const NotepadPlugin: Plugin = async () => {
           const params: any[] = [args.query];
 
           if (args.all_projects) {
-            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? ORDER BY rank`;
+            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? ORDER BY rank LIMIT 25`;
           } else {
-            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? AND n.project_path = ? ORDER BY rank`;
+            sql = `SELECT n.* FROM notes n JOIN notes_fts f ON n.id = f.rowid WHERE notes_fts MATCH ? AND n.project_path = ? ORDER BY rank LIMIT 25`;
             params.push(projectPath);
           }
 

@@ -179,7 +179,7 @@ function writeTodoFile(database: Database, projectPath: string): void {
   ensureGitignore(projectPath, ".TODO.md");
 
   // Store hash to detect manual edits later
-  const hash = Buffer.from(content).toString("base64");
+  const hash = new Bun.CryptoHasher("sha256").update(content).digest("hex");
   database.prepare("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)").run(`last_render:${projectPath}`, hash);
 }
 
@@ -354,7 +354,7 @@ export const TaskManagerPlugin: Plugin = async () => {
 
           // Check if file has actually been modified
           const lastRender = database.prepare("SELECT value FROM meta WHERE key = ?").get(`last_render:${projectPath}`) as { value: string } | null;
-          const currentHash = Buffer.from(content).toString("base64");
+          const currentHash = new Bun.CryptoHasher("sha256").update(content).digest("hex");
           if (lastRender && lastRender.value === currentHash) {
             return "TODO.md has not been modified since last render. Nothing to sync.";
           }
@@ -362,6 +362,10 @@ export const TaskManagerPlugin: Plugin = async () => {
           const parsed = parseTodoMd(content);
           let added = 0;
           let updated = 0;
+          let removed = 0;
+
+          // Collect IDs present in the file
+          const fileIds = new Set(parsed.filter((p) => p.id !== null).map((p) => p.id));
 
           for (const item of parsed) {
             if (item.id) {
@@ -385,10 +389,25 @@ export const TaskManagerPlugin: Plugin = async () => {
             }
           }
 
+          // Detect removed tasks — DB tasks not in file get cancelled
+          const activeTasks = database.prepare(
+            "SELECT id FROM tasks WHERE project_path = ? AND status NOT IN ('cancelled', 'completed')"
+          ).all(projectPath) as { id: number }[];
+          for (const task of activeTasks) {
+            if (!fileIds.has(task.id)) {
+              database.prepare("UPDATE tasks SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?").run(task.id);
+              removed++;
+            }
+          }
+
           backup();
           writeTodoFile(database, projectPath);
 
-          return `Synced TODO.md: ${added} task(s) added, ${updated} task(s) updated.`;
+          const parts = [];
+          if (added) parts.push(`${added} task(s) added`);
+          if (updated) parts.push(`${updated} task(s) updated`);
+          if (removed) parts.push(`${removed} task(s) removed`);
+          return parts.length > 0 ? `Synced TODO.md: ${parts.join(", ")}.` : "TODO.md synced, no changes detected.";
         },
       }),
     },

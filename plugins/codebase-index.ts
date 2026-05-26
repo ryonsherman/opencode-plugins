@@ -30,7 +30,7 @@ const DEFAULT_EXTS = new Set([
 
 const SKIP_DIRS = new Set([
   "node_modules", ".git", ".svn", ".hg",
-  "dist", "build", ".next", ".nuut", ".output",
+  "dist", "build", ".next", ".nuxt", ".output",
   "coverage", ".nyc_output",
   "vendor", "bower_components",
   ".cache", "cache", ".tox", ".eggs", "__pycache__",
@@ -396,9 +396,10 @@ const codebaseSearch = tool({
     }
     return readDb(() => {
       const database = getDb();
-      const safeQuery = args.query.replace(/-/g, " ");
+      const safeQuery = args.query.replace(/"/g, '""');
+      const ftsQuery = `"${safeQuery}"`;
       const limit = Math.min(Math.max(args.limit ?? 15, 1), 50);
-      const params: unknown[] = [safeQuery];
+      const params: unknown[] = [ftsQuery];
 
       let projectJoin = "";
       let projectWhere = "";

@@ -40,25 +40,40 @@ function parseDuration(input: string): Duration | null {
 function addDuration(date: Date, dur: Duration, subtract: boolean = false): Date {
   const sign = subtract ? -1 : 1;
   const result = new Date(date);
-  if (dur.years) {
+
+  // Normalize fractional parts: fractional years → months, fractional months → days (approx 30.44d)
+  let years = dur.years;
+  let months = dur.months + (years % 1) * 12;
+  years = Math.trunc(years);
+  let days = dur.days + (months % 1) * 30.44;
+  months = Math.trunc(months);
+  let hours = dur.hours + (days % 1) * 24;
+  days = Math.trunc(days);
+  let minutes = dur.minutes + (hours % 1) * 60;
+  hours = Math.trunc(hours);
+  let seconds = dur.seconds + (minutes % 1) * 60;
+  minutes = Math.trunc(minutes);
+  seconds = Math.round(seconds);
+
+  if (years) {
     const dayOfMonth = result.getUTCDate();
     result.setUTCDate(1);
-    result.setUTCFullYear(result.getUTCFullYear() + sign * dur.years);
+    result.setUTCFullYear(result.getUTCFullYear() + sign * years);
     const maxDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
     result.setUTCDate(Math.min(dayOfMonth, maxDay));
   }
-  if (dur.months) {
+  if (months) {
     const dayOfMonth = result.getUTCDate();
     result.setUTCDate(1);
-    result.setUTCMonth(result.getUTCMonth() + sign * dur.months);
+    result.setUTCMonth(result.getUTCMonth() + sign * months);
     const maxDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
     result.setUTCDate(Math.min(dayOfMonth, maxDay));
   }
-  if (dur.weeks) result.setUTCDate(result.getUTCDate() + sign * dur.weeks * 7);
-  if (dur.days) result.setUTCDate(result.getUTCDate() + sign * dur.days);
-  if (dur.hours) result.setUTCHours(result.getUTCHours() + sign * dur.hours);
-  if (dur.minutes) result.setUTCMinutes(result.getUTCMinutes() + sign * dur.minutes);
-  if (dur.seconds) result.setUTCSeconds(result.getUTCSeconds() + sign * dur.seconds);
+  if (dur.weeks) result.setUTCDate(result.getUTCDate() + sign * Math.trunc(dur.weeks) * 7 + sign * Math.round((dur.weeks % 1) * 7));
+  if (days) result.setUTCDate(result.getUTCDate() + sign * days);
+  if (hours) result.setUTCHours(result.getUTCHours() + sign * hours);
+  if (minutes) result.setUTCMinutes(result.getUTCMinutes() + sign * minutes);
+  if (seconds) result.setUTCSeconds(result.getUTCSeconds() + sign * seconds);
   return result;
 }
 

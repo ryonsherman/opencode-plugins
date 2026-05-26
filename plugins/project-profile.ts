@@ -1,12 +1,15 @@
 import { type Plugin, tool } from "@opencode-ai/plugin";
 import { Database } from "bun:sqlite";
-import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, copyFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, statSync, mkdirSync, copyFileSync, rmSync } from "fs";
 import { join, basename, resolve } from "path";
+import { homedir } from "os";
 
-const DB_DIR = join(process.env.HOME || "~", ".opencode-memory");
+const DB_DIR = join(homedir(), ".opencode-memory");
 const DB_PATH = join(DB_DIR, "project-profile.db");
 const BACKUP_DIR = join(DB_DIR, "backups");
 const MAX_BACKUPS = 5;
+
+let db: Database | null = null;
 
 function ensureDir(dir: string) {
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
@@ -23,20 +26,45 @@ function backup() {
     .sort()
     .reverse();
   for (const old of backups.slice(MAX_BACKUPS)) {
-    try { require("fs").unlinkSync(join(BACKUP_DIR, old)); } catch {}
+    rmSync(join(BACKUP_DIR, old));
   }
 }
 
-function getDb(): Database {
-  ensureDir(DB_DIR);
-  const db = new Database(DB_PATH, { create: true });
-  db.exec("PRAGMA journal_mode=WAL");
-  db.exec(`CREATE TABLE IF NOT EXISTS profiles (
+function tryRestore(): Database | null {
+  if (!existsSync(BACKUP_DIR)) return null;
+  const backups = readdirSync(BACKUP_DIR)
+    .filter((f) => f.startsWith("project-profile-"))
+    .sort();
+  if (backups.length === 0) return null;
+  const latest = backups[backups.length - 1];
+  copyFileSync(join(BACKUP_DIR, latest), DB_PATH);
+  const restored = new Database(DB_PATH);
+  restored.exec("PRAGMA journal_mode=WAL");
+  initSchema(restored);
+  return restored;
+}
+
+function initSchema(database: Database): void {
+  database.exec(`CREATE TABLE IF NOT EXISTS profiles (
     path TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     data TEXT NOT NULL,
     scanned_at TEXT NOT NULL
   )`);
+}
+
+function getDb(): Database {
+  if (!db) {
+    ensureDir(DB_DIR);
+    try {
+      db = new Database(DB_PATH, { create: true });
+      db.exec("PRAGMA journal_mode=WAL");
+      initSchema(db);
+    } catch (e) {
+      db = tryRestore();
+      if (!db) throw e;
+    }
+  }
   return db;
 }
 

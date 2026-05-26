@@ -494,3 +494,275 @@ User: Is my project indexed?
 
 Model: Yes, 42 files, 320 chunks. Last indexed 2026-05-25.
 ```
+
+### Command History — log and recall
+
+```
+User: Run the migration
+
+Model: *runs `npx prisma migrate deploy`*
+  Migration applied successfully.
+  I've logged that command to history.
+
+---
+
+User: What migration commands have I run?
+
+Model: Here are your recent migration commands:
+
+  | # | Command | Exit | Directory | When |
+  |---|---------|------|-----------|------|
+  | 1 | npx prisma migrate deploy | 0 | ~/project | 2 min ago |
+  | 2 | npx prisma migrate dev --name add-users | 0 | ~/project | yesterday |
+```
+
+### Decision Log — record choices
+
+```
+User: Let's use PostgreSQL instead of MySQL for the new service
+
+Model: Logged that decision.
+
+  **Decision #3**: use-postgresql-over-mysql
+  Status: accepted
+  Context: Choosing a database for the new service
+  Decision: Use PostgreSQL instead of MySQL
+  Tags: database, architecture
+
+---
+
+User: What architectural decisions have we made?
+
+Model: You have 3 decisions this session:
+
+  | # | Title | Status | Tags |
+  |---|-------|--------|------|
+  | 1 | rest-over-graphql | accepted | api |
+  | 2 | monorepo-structure | accepted | architecture |
+  | 3 | use-postgresql-over-mysql | accepted | database, architecture |
+```
+
+### Diff Engine — compare text
+
+```
+User: What's different between these two configs?
+
+Model: *runs diff_lines*
+
+  ```diff
+  @@ -3,4 +3,5 @@
+   {
+     "port": 3000,
+  -  "host": "localhost",
+  +  "host": "0.0.0.0",
+  +  "cors": true,
+     "debug": false
+   }
+  ```
+
+  2 additions, 1 deletion.
+```
+
+### Error Journal — track and resolve
+
+```
+User: I keep getting "ECONNREFUSED 127.0.0.1:5432"
+
+Model: I've logged that error. Let me also check if we've seen it before...
+
+  Found 1 past occurrence:
+  **Error #7** (resolved 3 days ago)
+  Resolution: PostgreSQL service wasn't running. Fixed with `brew services start postgresql@16`.
+
+  Looks like the same issue — try `brew services start postgresql@16`.
+```
+
+### Git Context — repo state
+
+```
+User: What's the state of this repo?
+
+Model: *runs git_context*
+
+  **Branch:** feature/auth (2 commits ahead of origin)
+  **Dirty files:**
+  - M src/auth/login.ts
+  - ?? src/auth/oauth.ts
+
+  **Recent commits:**
+  - `a3f1b2c` Add OAuth provider config
+  - `9e2d4a1` Implement login endpoint
+
+  **Stashes:** (none)
+```
+
+### Hash/Encode — compute hashes
+
+```
+User: What's the SHA-256 of "hello world"?
+
+Model: b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+
+---
+
+User: Base64 encode my API key: sk_live_abc123
+
+Model: c2tfbGl2ZV9hYmMxMjM=
+```
+
+### JSON Toolkit — validate and query
+
+```
+User: Is this valid JSON? {"name": "test", "items": [1, 2, }
+
+Model: Invalid JSON — unexpected `}` at position 37.
+  Expected a value after `[1, 2, `.
+
+---
+
+User: Query users[0].email from {"users": [{"email": "alice@co.com"}]}
+
+Model: alice@co.com
+```
+
+### Math/Units — expressions and conversion
+
+```
+User: What's 2^16 * 3?
+
+Model: 2**16 * 3 = 196608
+
+---
+
+User: Convert 2.5 GB to MB
+
+Model: 2.5 gb = 2560 mb
+```
+
+### Notepad — project notes
+
+```
+User: Note down that the staging API endpoint is https://api.staging.example.com
+
+Model: Added note #1: "staging-api-endpoint"
+
+---
+
+User: What notes do we have?
+
+Model:
+  | # | Title | Tags | Updated |
+  |---|-------|------|---------|
+  | 1 | staging-api-endpoint | api, staging | just now |
+  | 2 | database-credentials-location | ops | yesterday |
+```
+
+### Project Profile — metadata and conventions
+
+```
+User: What's this project's setup?
+
+Model: *runs project_profile*
+
+  **Languages:** TypeScript, CSS
+  **Framework:** Next.js 14
+  **Package manager:** pnpm
+  **Scripts:** dev, build, lint, test
+  **Entry points:** src/app/layout.tsx
+  **Conventions:**
+  1. Use server components by default, client only when needed
+  2. Colocate tests next to source files (*.test.ts)
+
+---
+
+User: Add a convention: always use named exports
+
+Model: Added convention #3: "always use named exports"
+```
+
+### Regex Tester — test patterns
+
+```
+User: Test the pattern (\d{4})-(\d{2})-(\d{2}) against "Born on 1990-05-15"
+
+Model:
+  Match: "1990-05-15" (index 8-18)
+  Group 1: "1990"
+  Group 2: "05"
+  Group 3: "15"
+```
+
+### Snippet Library — save and recall
+
+```
+User: Save this as a snippet for retry logic
+
+Model: Saved snippet #5: "exponential-retry-with-jitter" [typescript, async, error-handling]
+
+---
+
+User: Show me that retry snippet
+
+Model:
+  **#5 — exponential-retry-with-jitter** (typescript)
+  Tags: async, error-handling
+
+  ```typescript
+  async function retry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+    for (let i = 0; i < maxAttempts; i++) {
+      try { return await fn(); }
+      catch (e) {
+        if (i === maxAttempts - 1) throw e;
+        await new Promise(r => setTimeout(r, 2 ** i * 1000 + Math.random() * 500));
+      }
+    }
+    throw new Error("unreachable");
+  }
+  ```
+```
+
+### Task Manager — plan and track
+
+```
+User: Add a task to fix the login timeout bug, high priority
+
+Model: Added task #12: "Fix the login timeout bug" [high]
+
+---
+
+User: Show me what's on the todo list
+
+Model:
+  ## High
+  - [ ] Fix the login timeout bug (#12)
+
+  ## Medium
+  - [x] Add input validation to signup form (#9)
+  - [ ] Write tests for payment flow (#10)
+
+---
+
+User: Mark #12 done
+
+Model: Done. Task #12 marked completed.
+```
+
+### Time Calc — date math and timezones
+
+```
+User: What's 90 days from today?
+
+Model: 2026-05-25 + 90d = 2026-08-23 (Sunday)
+
+---
+
+User: What time is it in Tokyo?
+
+Model: 2026-05-26T04:32:15+09:00 (Asia/Tokyo)
+
+---
+
+User: How long between 2026-01-15 and 2026-05-25?
+
+Model: 4 months, 10 days (130 days total, 3120 hours)
+```

@@ -22,12 +22,17 @@ function getDb(): Database {
     if (!existsSync(DB_DIR)) {
       mkdirSync(DB_DIR, { recursive: true });
     }
-    db = new Database(DB_PATH);
-    db.exec("PRAGMA journal_mode=WAL");
-    db.exec("PRAGMA foreign_keys=ON");
-    initSchema(db);
+    try {
+      db = new Database(DB_PATH);
+      db.exec("PRAGMA journal_mode=WAL");
+      db.exec("PRAGMA foreign_keys=ON");
+      initSchema(db);
+    } catch (e) {
+      db = null;
+      if (!tryRestore()) throw e;
+    }
   }
-  return db;
+  return db!;
 }
 
 function initSchema(database: Database): void {

@@ -129,6 +129,10 @@ export const DiffEnginePlugin: Plugin = async () => {
           const a = args.old_text.split("\n");
           const b = args.new_text.split("\n");
 
+          if (a.length + b.length > 20000) {
+            return "Input too large (>20000 total lines). Split into smaller chunks.";
+          }
+
           if (args.old_text === args.new_text) {
             return "No differences found.";
           }
@@ -149,6 +153,10 @@ export const DiffEnginePlugin: Plugin = async () => {
           new_text: tool.schema.string().describe("Modified text"),
         },
         async execute(args, ctx) {
+          if (args.old_text.length + args.new_text.length > 50000) {
+            return "Input too large (>50000 total characters). Use diff_lines for large texts.";
+          }
+
           if (args.old_text === args.new_text) {
             return "No differences found.";
           }
