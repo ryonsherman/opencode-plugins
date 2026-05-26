@@ -163,7 +163,7 @@ Persistent error log with full-text search and resolution tracking. Log errors a
 - FTS5 index across error text, context, resolution, and tags
 - Filter by project, tags (AND logic), or resolved/unresolved status
 - Same backup/recovery mechanism as session-memory
-- Database: `~/.opencode-memory/error-journal.db`
+- Database: `~/.opencode-plugins/error-journal/error-journal.db`
 
 ### `git-context.ts`
 
@@ -361,7 +361,7 @@ Store and recall reusable code snippets by language, description, and tags. Back
 - Code preview (3 lines) in list view, full code in get/search
 - Language and tag filtering
 - Same backup/recovery mechanism as session-memory
-- Database: `~/.opencode-memory/snippet-library.db`
+- Database: `~/.opencode-plugins/snippet-library/snippet-library.db`
 
 ### `task-manager.ts`
 
@@ -409,18 +409,21 @@ Calendar-aware date/time calculations, timezone conversion, and duration unit co
 
 ## Databases
 
+Each plugin stores its data in an isolated directory under `~/.opencode-plugins/`:
+
 | Database | Path |
 |----------|------|
-| Memory | `~/.opencode-memory/memories.db` |
-| Codebase | `~/.opencode-memory/codebase.db` |
-| Command History | `~/.opencode-memory/command-history.db` |
-| Decision Log | `~/.opencode-memory/decision-log.db` |
-| Error Journal | `~/.opencode-memory/error-journal.db` |
-| Notepad | `~/.opencode-memory/notepad.db` |
-| Project Profile | `~/.opencode-memory/project-profile.db` |
-| Snippet Library | `~/.opencode-memory/snippet-library.db` |
-| Task Manager | `~/.opencode-memory/task-manager.db` |
-| Backups | `~/.opencode-memory/backups/` (last 5 each) |
+| Codebase | `~/.opencode-plugins/codebase-index/codebase.db` |
+| Command History | `~/.opencode-plugins/command-history/command-history.db` |
+| Decision Log | `~/.opencode-plugins/decision-log/decision-log.db` |
+| Error Journal | `~/.opencode-plugins/error-journal/error-journal.db` |
+| Memory | `~/.opencode-plugins/session-memory/memories.db` |
+| Notepad | `~/.opencode-plugins/notepad/notepad.db` |
+| Project Profile | `~/.opencode-plugins/project-profile/project-profile.db` |
+| Snippet Library | `~/.opencode-plugins/snippet-library/snippet-library.db` |
+| Task Manager | `~/.opencode-plugins/task-manager/task-manager.db` |
+
+Backups (last 5) are stored in each plugin's `backups/` subdirectory.
 
 ## Examples
 

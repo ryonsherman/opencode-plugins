@@ -8,7 +8,7 @@ Supplement your own `~/.config/opencode/instructions.md` with the relevant secti
 
 *If `session-memory.ts` is installed.*
 
-Eleven tools for persisting and recalling context across sessions. Backed by SQLite + FTS5 at `~/.opencode-memory/memories.db`.
+Eleven tools for persisting and recalling context across sessions. Backed by SQLite + FTS5 at `~/.opencode-plugins/session-memory/memories.db`.
 
 ### Tools
 
@@ -99,7 +99,7 @@ Maintain a `session-context` memory that holds the full, current session context
 
 *If `codebase-index.ts` is installed.*
 
-Four tools for local full-text code search. Backed by SQLite + FTS5 at `~/.opencode-memory/codebase.db`. Files split into 50-line chunks with 10-line overlap.
+Four tools for local full-text code search. Backed by SQLite + FTS5 at `~/.opencode-plugins/codebase-index/codebase.db`. Files split into 50-line chunks with 10-line overlap.
 
 **Use `codebase_search` transparently for all code-related questions.** Do not wait for the user to ask — when you need to find code, understand a pattern, or answer anything about the codebase, just call `codebase_search`. It auto-indexes if needed.
 
@@ -189,7 +189,7 @@ Two tools for deterministic text comparison using the Myers diff algorithm.
 
 *If `error-journal.ts` is installed.*
 
-Five tools for logging errors, recording resolutions, and searching past fixes. Backed by SQLite at `~/.opencode-memory/error-journal.db`.
+Five tools for logging errors, recording resolutions, and searching past fixes. Backed by SQLite at `~/.opencode-plugins/error-journal/error-journal.db`.
 
 ### Tools
 
@@ -282,7 +282,7 @@ Use `math_eval` for any non-trivial arithmetic — the model hallucinates on lar
 
 *If `notepad.ts` is installed.*
 
-Five tools for freeform project notes. Backed by SQLite + FTS5 at `~/.opencode-memory/notepad.db`. Auto-generates NOTES.md in git repos.
+Five tools for freeform project notes. Backed by SQLite + FTS5 at `~/.opencode-plugins/notepad/notepad.db`. Auto-generates NOTES.md in git repos.
 
 ### Tools
 
@@ -304,7 +304,7 @@ Five tools for freeform project notes. Backed by SQLite + FTS5 at `~/.opencode-m
 
 *If `project-profile.ts` is installed.*
 
-Five tools for auto-detecting project metadata and managing conventions. Backed by SQLite at `~/.opencode-memory/project-profile.db`.
+Five tools for auto-detecting project metadata and managing conventions. Backed by SQLite at `~/.opencode-plugins/project-profile/project-profile.db`.
 
 ### Tools
 
@@ -342,7 +342,7 @@ Use `regex_test` to verify patterns before using them in code. Use `regex_explai
 
 *If `snippet-library.ts` is installed.*
 
-Five tools for storing and recalling reusable code snippets. Backed by SQLite + FTS5 at `~/.opencode-memory/snippet-library.db`.
+Five tools for storing and recalling reusable code snippets. Backed by SQLite + FTS5 at `~/.opencode-plugins/snippet-library/snippet-library.db`.
 
 ### Tools
 
