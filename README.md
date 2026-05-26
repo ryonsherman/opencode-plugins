@@ -2,6 +2,8 @@
 
 Plugins for the [OpenCode](https://opencode.ai) CLI agent. Loaded from `~/.config/opencode/plugins/`.
 
+See [opencode-prompts](https://github.com/ryonsherman/opencode-prompts) for agent instructions that support the use of these plugins.
+
 | Plugin | Description |
 |--------|-------------|
 | [codebase-index](#codebase-indexts) | Local codebase indexing and full-text search over source files |
